@@ -35,7 +35,13 @@ interface NotificationInstanceDao {
     suspend fun getById(id: String): NotificationInstanceEntity?
 
     @Query("SELECT * FROM notification_instances WHERE event_id = :eventId")
+    suspend fun getInstancesForEvent(eventId: String): List<NotificationInstanceEntity>
+
+    @Query("SELECT * FROM notification_instances WHERE event_id = :eventId")
     fun getInstancesForEventFlow(eventId: String): Flow<List<NotificationInstanceEntity>>
+
+    @Query("SELECT * FROM notification_instances WHERE status = 'SCHEDULED' OR status = 'SNOOZED' ORDER BY trigger_epoch_millis ASC")
+    suspend fun getAllActiveScheduled(): List<NotificationInstanceEntity>
 
     @Query("SELECT * FROM notification_instances WHERE status = 'SCHEDULED' AND trigger_epoch_millis <= :nowMillis ORDER BY trigger_epoch_millis ASC")
     suspend fun getPendingDueInstances(nowMillis: Long): List<NotificationInstanceEntity>
