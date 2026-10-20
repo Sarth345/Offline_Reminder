@@ -113,6 +113,12 @@ interface EventDao {
     @Query("SELECT COUNT(*) FROM events WHERE lifecycle_status = 'TRASHED'")
     suspend fun countTrashed(): Int
 
+    @Query("SELECT COUNT(*) FROM events WHERE category_id = :categoryId")
+    suspend fun countAllEventsByCategory(categoryId: String): Int
+
+    @Query("SELECT COUNT(*) FROM events WHERE event_type_id = :eventTypeId")
+    suspend fun countAllEventsByEventType(eventTypeId: String): Int
+
     @Transaction
     @Query("SELECT * FROM events ORDER BY start_date ASC, start_time ASC")
     suspend fun getAllWithDetails(): List<EventWithDetails>

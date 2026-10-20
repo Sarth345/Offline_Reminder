@@ -46,7 +46,7 @@ class SettingsComposeTest {
         }
 
         composeTestRule.onNodeWithText("Settings & Data Management").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Local Backup & Restore").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Local Backup & Restore").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Export Backup").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Import Backup File").performScrollTo().assertIsDisplayed()
 
@@ -116,6 +116,108 @@ class SettingsComposeTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Exporting...").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Exporting...").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsContent_updatesThemeMode() {
+        var actionReceived: SettingsAction? = null
+
+        composeTestRule.setContent {
+            OfflineReminderTheme {
+                SettingsContent(
+                    uiState = SettingsUiState(),
+                    onAction = { actionReceived = it },
+                    onNavigateBack = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Dark").performScrollTo().performClick()
+        assertEquals(SettingsAction.UpdateThemeMode(com.example.offlinereminder.domain.model.ThemeMode.DARK), actionReceived)
+    }
+
+    @Test
+    fun settingsContent_togglesTimeFormat() {
+        var actionReceived: SettingsAction? = null
+
+        composeTestRule.setContent {
+            OfflineReminderTheme {
+                SettingsContent(
+                    uiState = SettingsUiState(),
+                    onAction = { actionReceived = it },
+                    onNavigateBack = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Use 24-Hour Format").performScrollTo().performClick()
+        assertEquals(SettingsAction.UpdateTimeFormat(true), actionReceived)
+    }
+
+    @Test
+    fun settingsContent_displaysCategoriesAndTriggersDelete() {
+        var actionReceived: SettingsAction? = null
+        val category = com.example.offlinereminder.domain.model.Category(id = "cat-custom", name = "Finance", isCustom = true)
+
+        composeTestRule.setContent {
+            OfflineReminderTheme {
+                SettingsContent(
+                    uiState = SettingsUiState(categories = listOf(category)),
+                    onAction = { actionReceived = it },
+                    onNavigateBack = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Finance").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Delete category").performScrollTo().performClick()
+        assertEquals(SettingsAction.DeleteCategory("cat-custom"), actionReceived)
+    }
+
+    @Test
+    fun settingsContent_displaysEventTypesAndTriggersDelete() {
+        var actionReceived: SettingsAction? = null
+        val eventType = com.example.offlinereminder.domain.model.EventType(
+            id = "type-custom",
+            name = "Standup",
+            key = "standup",
+            categoryId = "cat-1",
+            createdAt = java.time.Instant.parse("2026-10-20T10:00:00Z")
+        )
+
+        composeTestRule.setContent {
+            OfflineReminderTheme {
+                SettingsContent(
+                    uiState = SettingsUiState(eventTypes = listOf(eventType)),
+                    onAction = { actionReceived = it },
+                    onNavigateBack = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Standup").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Delete event type").performScrollTo().performClick()
+        assertEquals(SettingsAction.DeleteEventType("type-custom"), actionReceived)
+    }
+
+    @Test
+    fun settingsContent_resetToDefaults_showsConfirmDialogAndDispatches() {
+        var actionReceived: SettingsAction? = null
+
+        composeTestRule.setContent {
+            OfflineReminderTheme {
+                SettingsContent(
+                    uiState = SettingsUiState(),
+                    onAction = { actionReceived = it },
+                    onNavigateBack = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Reset All Settings to Defaults").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Reset All Settings?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Reset").performClick()
+        assertEquals(SettingsAction.ResetSettings, actionReceived)
     }
 }

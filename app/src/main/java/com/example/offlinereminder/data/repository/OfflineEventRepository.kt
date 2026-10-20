@@ -56,6 +56,12 @@ class OfflineEventRepository(
     override fun getEventsByEventType(eventTypeId: String): Flow<List<Event>> =
         eventDao.getActiveEventsByEventTypeWithDetailsFlow(eventTypeId).map { list -> list.map { it.toDomain() } }
 
+    override suspend fun countEventsByCategory(categoryId: String): Int =
+        eventDao.countAllEventsByCategory(categoryId)
+
+    override suspend fun countEventsByEventType(eventTypeId: String): Int =
+        eventDao.countAllEventsByEventType(eventTypeId)
+
     override fun getSubEvents(parentEventId: String): Flow<List<Event>> =
         eventDao.getSubEventsWithDetailsFlow(parentEventId).map { list -> list.map { it.toDomain() } }
 

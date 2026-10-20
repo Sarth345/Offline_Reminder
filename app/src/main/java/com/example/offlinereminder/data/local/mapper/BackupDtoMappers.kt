@@ -26,11 +26,14 @@ import com.example.offlinereminder.domain.backup.NotificationScheduleBackupDto
 import com.example.offlinereminder.domain.backup.OccurrenceExceptionBackupDto
 import com.example.offlinereminder.domain.backup.QuietHoursBackupDto
 import com.example.offlinereminder.domain.backup.RecurrenceRuleBackupDto
+import com.example.offlinereminder.domain.backup.SettingsBackupDto
 import com.example.offlinereminder.domain.backup.TagBackupDto
 import com.example.offlinereminder.domain.backup.TemporalBackupDto
+import com.example.offlinereminder.domain.model.AppSettings
 import com.example.offlinereminder.domain.model.AttachmentMetadata
 import com.example.offlinereminder.domain.model.Checklist
 import com.example.offlinereminder.domain.model.ChecklistItem
+import com.example.offlinereminder.domain.model.DateFormatPreference
 import com.example.offlinereminder.domain.model.DependencyType
 import com.example.offlinereminder.domain.model.Event
 import com.example.offlinereminder.domain.model.EventDateTime
@@ -46,6 +49,7 @@ import com.example.offlinereminder.domain.model.RecurrenceEnd
 import com.example.offlinereminder.domain.model.RecurrenceFrequency
 import com.example.offlinereminder.domain.model.RecurrenceRule
 import com.example.offlinereminder.domain.model.RelationshipType
+import com.example.offlinereminder.domain.model.ThemeMode
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
@@ -227,6 +231,35 @@ fun QuietHoursBackupDto.toDomain(): QuietHours = QuietHours(
     endLocalTime = LocalTime.parse(endLocalTime),
     policy = QuietHoursPolicy.valueOf(policy),
     allowCritical = allowCritical
+)
+
+// ----------------------------------------------------
+// AppSettings <-> SettingsBackupDto
+// ----------------------------------------------------
+fun AppSettings.toBackupDto(): SettingsBackupDto = SettingsBackupDto(
+    themeMode = themeMode.name,
+    use24HourFormat = use24HourFormat,
+    dateFormat = dateFormat.name,
+    firstDayOfWeek = firstDayOfWeek.name,
+    defaultEventPriority = defaultEventPriority.name,
+    defaultEventDurationMinutes = defaultEventDurationMinutes,
+    defaultSnoozeDurationMinutes = defaultSnoozeDurationMinutes,
+    soundEnabled = soundEnabled,
+    vibrationEnabled = vibrationEnabled,
+    quietHours = quietHours.toBackupDto()
+)
+
+fun SettingsBackupDto.toDomain(): AppSettings = AppSettings(
+    themeMode = runCatching { ThemeMode.valueOf(themeMode) }.getOrDefault(ThemeMode.SYSTEM),
+    use24HourFormat = use24HourFormat,
+    dateFormat = runCatching { DateFormatPreference.valueOf(dateFormat) }.getOrDefault(DateFormatPreference.SYSTEM_DEFAULT),
+    firstDayOfWeek = runCatching { DayOfWeek.valueOf(firstDayOfWeek) }.getOrDefault(DayOfWeek.MONDAY),
+    defaultEventPriority = runCatching { Priority.valueOf(defaultEventPriority) }.getOrDefault(Priority.NORMAL),
+    defaultEventDurationMinutes = if (defaultEventDurationMinutes > 0) defaultEventDurationMinutes else 60,
+    defaultSnoozeDurationMinutes = if (defaultSnoozeDurationMinutes > 0) defaultSnoozeDurationMinutes else 10,
+    soundEnabled = soundEnabled,
+    vibrationEnabled = vibrationEnabled,
+    quietHours = quietHours.toDomain()
 )
 
 // ----------------------------------------------------

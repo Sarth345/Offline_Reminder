@@ -77,7 +77,8 @@ class ViewModelFactory(
                     getEventGroupsUseCase = appContainer.getEventGroupsUseCase,
                     getTagsUseCase = appContainer.getTagsUseCase,
                     timeProvider = appContainer.timeProvider,
-                    dispatcherProvider = appContainer.dispatcherProvider
+                    dispatcherProvider = appContainer.dispatcherProvider,
+                    settingsRepository = appContainer.settingsRepository
                 ) as T
             }
             modelClass.isAssignableFrom(UpcomingViewModel::class.java) -> {
@@ -133,6 +134,17 @@ class ViewModelFactory(
             }
             modelClass.isAssignableFrom(SettingsViewModel::class.java) -> {
                 SettingsViewModel(
+                    getSettingsUseCase = appContainer.getSettingsUseCase,
+                    updateSettingsUseCase = appContainer.updateSettingsUseCase,
+                    resetSettingsUseCase = appContainer.resetSettingsUseCase,
+                    getCategoriesUseCase = appContainer.getCategoriesUseCase,
+                    createCategoryUseCase = appContainer.createCategoryUseCase,
+                    updateCategoryUseCase = appContainer.updateCategoryUseCase,
+                    deleteCategoryUseCase = appContainer.deleteCategoryUseCase,
+                    getEventTypesUseCase = appContainer.getEventTypesUseCase,
+                    createEventTypeUseCase = appContainer.createEventTypeUseCase,
+                    updateEventTypeUseCase = appContainer.updateEventTypeUseCase,
+                    deleteEventTypeUseCase = appContainer.deleteEventTypeUseCase,
                     exportBackupUseCase = appContainer.exportBackupUseCase,
                     restoreBackupUseCase = appContainer.restoreBackupUseCase,
                     dispatcherProvider = appContainer.dispatcherProvider

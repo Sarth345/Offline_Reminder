@@ -18,6 +18,8 @@ interface EventRepository {
     fun getFavoriteEvents(): Flow<List<Event>>
     fun getEventsByCategory(categoryId: String): Flow<List<Event>>
     fun getEventsByEventType(eventTypeId: String): Flow<List<Event>>
+    suspend fun countEventsByCategory(categoryId: String): Int
+    suspend fun countEventsByEventType(eventTypeId: String): Int
     fun getSubEvents(parentEventId: String): Flow<List<Event>>
     fun getEventsInDateRange(startDate: LocalDate, endDate: LocalDate): Flow<List<Event>>
     suspend fun saveEvent(event: Event): Result<Unit>

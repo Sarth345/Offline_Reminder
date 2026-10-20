@@ -14,6 +14,7 @@ import com.example.offlinereminder.domain.notification.NotificationScheduleCalcu
 import com.example.offlinereminder.domain.recurrence.DefaultRecurrenceEngine
 import com.example.offlinereminder.domain.recurrence.RecurrenceEngine
 import com.example.offlinereminder.domain.repository.NotificationRepository
+import com.example.offlinereminder.domain.repository.SettingsRepository
 
 /**
  * Use case to project occurrences within a bounded horizon and schedule corresponding alarms.
@@ -23,7 +24,8 @@ class ScheduleNotificationsForEventUseCase(
     private val notificationRepository: NotificationRepository,
     private val alarmScheduler: AlarmScheduler,
     private val recurrenceEngine: RecurrenceEngine = DefaultRecurrenceEngine(),
-    private val timeProvider: TimeProvider
+    private val timeProvider: TimeProvider,
+    private val settingsRepository: SettingsRepository? = null
 ) {
 
     suspend operator fun invoke(
@@ -32,6 +34,7 @@ class ScheduleNotificationsForEventUseCase(
         quietHours: QuietHours? = null,
         horizonDays: Long = NotificationConstants.DEFAULT_HORIZON_DAYS
     ): Result<Int> = Result.runCatching {
+        val effectiveQuietHours = quietHours ?: settingsRepository?.getSettings()?.quietHours
         // If event is trashed or has no schedules, reconcile/cancel all existing
         if (event.isTrashed || event.notificationSchedules.isEmpty()) {
             val existing = notificationRepository.getInstancesForEvent(event.id)
@@ -63,7 +66,7 @@ class ScheduleNotificationsForEventUseCase(
                 val calc = NotificationScheduleCalculator.calculate(
                     occurrence = occ,
                     schedule = schedule,
-                    quietHours = quietHours,
+                    quietHours = effectiveQuietHours,
                     priority = event.priority
                 )
                 if (calc.triggerEpochMillis > nowEpochMillis) {
@@ -104,7 +107,8 @@ class ScheduleNotificationsForEventUseCase(
                         NotificationConstants.EXTRA_INSTANCE_ID to candidate.instanceId,
                         NotificationConstants.EXTRA_EVENT_ID to candidate.eventId,
                         NotificationConstants.EXTRA_OCCURRENCE_START to candidate.occurrenceOriginalStartDateTime.toString(),
-                        NotificationConstants.EXTRA_OCCURRENCE_ZONE to candidate.occurrenceOriginalZoneId.id
+                        NotificationConstants.EXTRA_OCCURRENCE_ZONE to candidate.occurrenceOriginalZoneId.id,
+                        NotificationConstants.EXTRA_IS_SILENT to candidate.isSilent.toString()
                     )
                 )
                 if (success) {

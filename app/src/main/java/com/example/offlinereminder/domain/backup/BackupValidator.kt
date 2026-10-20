@@ -178,6 +178,36 @@ class BackupValidator {
             }
         }
 
+        // 7. Settings validation
+        val settings = payload.settings
+        if (settings.themeMode !in listOf("SYSTEM", "LIGHT", "DARK")) {
+            errors.add("Invalid themeMode: ${settings.themeMode}")
+        }
+        if (settings.dateFormat !in listOf("SYSTEM_DEFAULT", "ISO", "DMY", "MDY")) {
+            errors.add("Invalid dateFormat: ${settings.dateFormat}")
+        }
+        if (settings.firstDayOfWeek !in listOf("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY")) {
+            errors.add("Invalid firstDayOfWeek: ${settings.firstDayOfWeek}")
+        }
+        if (settings.defaultEventPriority !in listOf("LOW", "NORMAL", "HIGH", "CRITICAL")) {
+            errors.add("Invalid defaultEventPriority: ${settings.defaultEventPriority}")
+        }
+        if (settings.defaultEventDurationMinutes <= 0) {
+            errors.add("defaultEventDurationMinutes must be positive: ${settings.defaultEventDurationMinutes}")
+        }
+        if (settings.defaultSnoozeDurationMinutes <= 0) {
+            errors.add("defaultSnoozeDurationMinutes must be positive: ${settings.defaultSnoozeDurationMinutes}")
+        }
+        try {
+            LocalTime.parse(settings.quietHours.startLocalTime)
+            LocalTime.parse(settings.quietHours.endLocalTime)
+        } catch (e: DateTimeParseException) {
+            errors.add("QuietHours has malformed time: ${e.message}")
+        }
+        if (settings.quietHours.policy !in listOf("DELAY", "SILENT", "ALLOW_CRITICAL")) {
+            errors.add("Invalid quietHours policy: ${settings.quietHours.policy}")
+        }
+
         return if (errors.isEmpty()) {
             Result.Success(Unit)
         } else {

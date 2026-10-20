@@ -15,6 +15,8 @@ import com.example.offlinereminder.domain.model.EventLifecycleStatus
 import com.example.offlinereminder.domain.model.NotificationSchedule
 import com.example.offlinereminder.domain.model.Priority
 import com.example.offlinereminder.domain.model.RecurrenceRule
+import com.example.offlinereminder.domain.model.AppSettings
+import com.example.offlinereminder.domain.repository.SettingsRepository
 import com.example.offlinereminder.domain.usecase.CreateEventUseCase
 import com.example.offlinereminder.domain.usecase.GetCategoriesUseCase
 import com.example.offlinereminder.domain.usecase.GetEventByIdUseCase
@@ -44,7 +46,8 @@ class EventEditorViewModel(
     private val getEventGroupsUseCase: GetEventGroupsUseCase,
     private val getTagsUseCase: GetTagsUseCase,
     private val timeProvider: TimeProvider = SystemTimeProvider(),
-    private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider()
+    private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider(),
+    private val settingsRepository: SettingsRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EventEditorUiState(isLoading = true))
@@ -112,14 +115,26 @@ class EventEditorViewModel(
 
     private fun initWithEvent(eventId: String?) {
         if (eventId == null) {
-            // New event with default temporal today
-            val defaultTemporal = EventDateTime.DateOnly(timeProvider.nowLocalDate())
-            _uiState.update {
-                it.copy(
-                    isEditing = false,
-                    eventId = null,
-                    temporal = it.temporal ?: defaultTemporal
+            viewModelScope.launch(dispatcherProvider.main) {
+                val settings = settingsRepository?.getSettings() ?: AppSettings()
+                val today = timeProvider.nowLocalDate()
+                val nowTime = timeProvider.nowLocalDateTime().toLocalTime().withSecond(0).withNano(0)
+                val startDateTime = today.atTime(nowTime)
+                val duration = settings.defaultEventDurationMinutes.toLong()
+                val endDateTime = startDateTime.plusMinutes(duration)
+                val defaultTemporal = EventDateTime.DateTimeRange(
+                    startDateTime = startDateTime,
+                    endDateTime = endDateTime,
+                    zoneId = timeProvider.systemZoneId()
                 )
+                _uiState.update {
+                    it.copy(
+                        isEditing = false,
+                        eventId = null,
+                        priority = settings.defaultEventPriority,
+                        temporal = it.temporal ?: defaultTemporal
+                    )
+                }
             }
             return
         }
@@ -157,11 +172,25 @@ class EventEditorViewModel(
     }
 
     private fun initWithDefaults(initialDate: LocalDate?, initialEventTypeId: String?) {
-        _uiState.update {
-            it.copy(
-                temporal = if (initialDate != null) EventDateTime.DateOnly(initialDate) else it.temporal,
-                eventTypeId = initialEventTypeId ?: it.eventTypeId
+        viewModelScope.launch(dispatcherProvider.main) {
+            val settings = settingsRepository?.getSettings() ?: AppSettings()
+            val startDate = initialDate ?: timeProvider.nowLocalDate()
+            val nowTime = timeProvider.nowLocalDateTime().toLocalTime().withSecond(0).withNano(0)
+            val startDateTime = startDate.atTime(nowTime)
+            val duration = settings.defaultEventDurationMinutes.toLong()
+            val endDateTime = startDateTime.plusMinutes(duration)
+            val defaultTemporal = EventDateTime.DateTimeRange(
+                startDateTime = startDateTime,
+                endDateTime = endDateTime,
+                zoneId = timeProvider.systemZoneId()
             )
+            _uiState.update {
+                it.copy(
+                    temporal = if (initialDate != null) defaultTemporal else (it.temporal ?: defaultTemporal),
+                    priority = settings.defaultEventPriority,
+                    eventTypeId = initialEventTypeId ?: it.eventTypeId
+                )
+            }
         }
     }
 

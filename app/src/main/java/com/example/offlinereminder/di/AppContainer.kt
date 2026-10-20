@@ -97,4 +97,15 @@ interface AppContainer {
     val backupRepository: com.example.offlinereminder.domain.backup.BackupRepository
     val exportBackupUseCase: com.example.offlinereminder.domain.usecase.ExportBackupUseCase
     val restoreBackupUseCase: com.example.offlinereminder.domain.usecase.RestoreBackupUseCase
+
+    val settingsRepository: com.example.offlinereminder.domain.repository.SettingsRepository
+    val getSettingsUseCase: com.example.offlinereminder.domain.usecase.GetSettingsUseCase
+    val updateSettingsUseCase: com.example.offlinereminder.domain.usecase.UpdateSettingsUseCase
+    val resetSettingsUseCase: com.example.offlinereminder.domain.usecase.ResetSettingsUseCase
+    val createCategoryUseCase: com.example.offlinereminder.domain.usecase.CreateCategoryUseCase
+    val updateCategoryUseCase: com.example.offlinereminder.domain.usecase.UpdateCategoryUseCase
+    val deleteCategoryUseCase: com.example.offlinereminder.domain.usecase.DeleteCategoryUseCase
+    val createEventTypeUseCase: com.example.offlinereminder.domain.usecase.CreateEventTypeUseCase
+    val updateEventTypeUseCase: com.example.offlinereminder.domain.usecase.UpdateEventTypeUseCase
+    val deleteEventTypeUseCase: com.example.offlinereminder.domain.usecase.DeleteEventTypeUseCase
 }

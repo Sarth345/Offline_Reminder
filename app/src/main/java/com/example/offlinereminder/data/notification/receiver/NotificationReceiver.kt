@@ -4,15 +4,19 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.room.Room
+import com.example.offlinereminder.OfflineReminderApplication
 import com.example.offlinereminder.data.local.AppDatabase
 import com.example.offlinereminder.data.local.mapper.toDomain
 import com.example.offlinereminder.data.notification.NotificationPoster
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
 import com.example.offlinereminder.domain.model.OccurrenceStatus
+import com.example.offlinereminder.domain.model.Priority
+import com.example.offlinereminder.domain.model.QuietHoursPolicy
 import com.example.offlinereminder.domain.notification.NotificationConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.time.LocalTime
 
 /**
  * Triggered by [android.app.AlarmManager] when a scheduled notification time arrives.
@@ -75,8 +79,41 @@ class NotificationReceiver : BroadcastReceiver() {
                 val eventDomain = eventAggregate.toDomain()
                 val instanceDomain = instanceEntity.toDomain()
 
+                val settings = try {
+                    (context.applicationContext as? OfflineReminderApplication)?.container?.settingsRepository?.getSettings()
+                } catch (_: Exception) {
+                    null
+                }
+
+                val soundEnabled = settings?.soundEnabled ?: true
+                val vibrationEnabled = settings?.vibrationEnabled ?: true
+                val snoozeMinutes = settings?.defaultSnoozeDurationMinutes ?: 10
+                val quietHours = settings?.quietHours
+
+                val isSilentExtra = intent.getBooleanExtra(NotificationConstants.EXTRA_IS_SILENT, false) ||
+                    intent.getStringExtra(NotificationConstants.EXTRA_IS_SILENT)?.toBoolean() == true
+
+                var isSilent = isSilentExtra
+                if (quietHours != null && quietHours.enabled) {
+                    val nowTime = LocalTime.now()
+                    if (quietHours.isInQuietHours(nowTime)) {
+                        val isExempt = quietHours.allowCritical &&
+                            (eventDomain.priority == Priority.HIGH || eventDomain.priority == Priority.CRITICAL)
+                        if (!isExempt && quietHours.policy == QuietHoursPolicy.SILENT) {
+                            isSilent = true
+                        }
+                    }
+                }
+
                 val poster = NotificationPoster(context)
-                val posted = poster.postNotification(eventDomain, instanceDomain)
+                val posted = poster.postNotification(
+                    event = eventDomain,
+                    instance = instanceDomain,
+                    isSilent = isSilent,
+                    soundEnabled = soundEnabled,
+                    vibrationEnabled = vibrationEnabled,
+                    snoozeDurationMinutes = snoozeMinutes
+                )
 
                 if (posted) {
                     db.notificationInstanceDao().updateStatus(instanceId, "DELIVERED")

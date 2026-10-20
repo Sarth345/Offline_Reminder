@@ -10,6 +10,7 @@ import com.example.offlinereminder.domain.backup.RestoreStrategy
 import com.example.offlinereminder.domain.backup.RestoreSummary
 import com.example.offlinereminder.domain.repository.EventRepository
 import com.example.offlinereminder.domain.repository.OccurrenceExceptionRepository
+import com.example.offlinereminder.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.first
 import java.io.InputStream
 
@@ -22,6 +23,7 @@ class RestoreBackupUseCase(
     private val eventRepository: EventRepository,
     private val occurrenceExceptionRepository: OccurrenceExceptionRepository,
     private val scheduleNotificationsForEventUseCase: ScheduleNotificationsForEventUseCase,
+    private val settingsRepository: SettingsRepository? = null,
     private val validator: BackupValidator = BackupValidator(),
     private val migrator: BackupMigrator = BackupMigrator()
 ) {
@@ -61,12 +63,14 @@ class RestoreBackupUseCase(
 
     private suspend fun reconcileNotifications() {
         val activeEvents = eventRepository.getAllActiveEvents().first()
+        val quietHours = settingsRepository?.getSettings()?.quietHours
         for (event in activeEvents) {
             if (event.notificationSchedules.isNotEmpty()) {
                 val exceptions = occurrenceExceptionRepository.getExceptionsForEvent(event.id).first()
                 scheduleNotificationsForEventUseCase(
                     event = event,
-                    exceptions = exceptions
+                    exceptions = exceptions,
+                    quietHours = quietHours
                 )
             }
         }

@@ -58,9 +58,13 @@ class NotificationPoster(
     fun postNotification(
         event: Event,
         instance: NotificationInstance,
-        isSilent: Boolean = false
+        isSilent: Boolean = false,
+        soundEnabled: Boolean = true,
+        vibrationEnabled: Boolean = true,
+        snoozeDurationMinutes: Int = 10
     ): Boolean {
-        val channelId = if (isSilent) {
+        val effectiveSilent = isSilent || !soundEnabled
+        val channelId = if (effectiveSilent) {
             NotificationConstants.CHANNEL_ID_SILENT
         } else {
             NotificationConstants.CHANNEL_ID_DEFAULT
@@ -96,13 +100,14 @@ class NotificationPoster(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action 2: Snooze (default 10 mins)
+        // Action 2: Snooze (configurable duration from settings)
+        val snoozeMillis = (snoozeDurationMinutes.coerceAtLeast(1)) * 60 * 1000L
         val snoozeIntent = Intent(context, NotificationActionReceiver::class.java).apply {
             action = NotificationConstants.ACTION_SNOOZE
             putExtra(NotificationConstants.EXTRA_NOTIFICATION_ID, notificationId)
             putExtra(NotificationConstants.EXTRA_INSTANCE_ID, instance.id)
             putExtra(NotificationConstants.EXTRA_EVENT_ID, event.id)
-            putExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MILLIS, 10 * 60 * 1000L)
+            putExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MILLIS, snoozeMillis)
         }
         val snoozePendingIntent = PendingIntent.getBroadcast(
             context,
@@ -130,9 +135,19 @@ class NotificationPoster(
             .setContentIntent(contentPendingIntent)
             .setDeleteIntent(dismissPendingIntent)
             .setAutoCancel(true)
-            .setPriority(if (isSilent) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
+            .setPriority(if (effectiveSilent) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
             .addAction(0, "Complete", completePendingIntent)
             .addAction(0, "Snooze", snoozePendingIntent)
+
+        if (effectiveSilent) {
+            builder.setSilent(true)
+        }
+
+        if (!vibrationEnabled || effectiveSilent) {
+            builder.setVibrate(longArrayOf(0L))
+        } else {
+            builder.setVibrate(longArrayOf(0L, 250L, 250L, 250L))
+        }
 
         val compat = NotificationManagerCompat.from(context)
         return try {

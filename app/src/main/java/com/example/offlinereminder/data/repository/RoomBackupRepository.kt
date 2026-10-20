@@ -18,6 +18,8 @@ import com.example.offlinereminder.domain.backup.BackupRepository
 import com.example.offlinereminder.domain.backup.BackupValidator
 import com.example.offlinereminder.domain.backup.RestoreStrategy
 import com.example.offlinereminder.domain.backup.RestoreSummary
+import com.example.offlinereminder.domain.backup.SettingsBackupDto
+import com.example.offlinereminder.domain.repository.SettingsRepository
 import kotlinx.serialization.json.Json
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -36,6 +38,7 @@ class RoomBackupRepository(
     private val database: AppDatabase,
     private val timeProvider: TimeProvider,
     private val attachmentsDir: File? = null,
+    private val settingsRepository: SettingsRepository? = null,
     private val validator: BackupValidator = BackupValidator(),
     private val migrator: BackupMigrator = BackupMigrator()
 ) : BackupRepository {
@@ -70,6 +73,7 @@ class RoomBackupRepository(
         val exceptions = occurrenceExceptionDao.getAll().map { it.toBackupDto() }
         val dependencies = eventDependencyDao.getAll().map { it.toBackupDto() }
         val relationships = eventRelationshipDao.getAll().map { it.toBackupDto() }
+        val settings = settingsRepository?.getSettings()?.toBackupDto() ?: SettingsBackupDto()
 
         BackupPayload(
             backupVersion = BackupConstants.CURRENT_BACKUP_VERSION,
@@ -82,7 +86,8 @@ class RoomBackupRepository(
             events = events,
             occurrenceExceptions = exceptions,
             dependencies = dependencies,
-            relationships = relationships
+            relationships = relationships,
+            settings = settings
         )
     }
 
@@ -90,11 +95,21 @@ class RoomBackupRepository(
         payload: BackupPayload,
         strategy: RestoreStrategy
     ): Result<RestoreSummary> = Result.runCatching {
-        // Validate before touching database
+        // Validate before touching database or persistent settings
         validator.validate(payload).getOrThrow()
 
-        database.withTransaction {
-            var restoredEvents = 0
+        // Capture settings snapshot for atomicity rollback
+        val originalSettings = settingsRepository?.getSettings()
+
+        // 1. Update settings first. If this fails, the database is never touched.
+        if (settingsRepository != null) {
+            settingsRepository.updateSettings { payload.settings.toDomain() }.getOrThrow()
+        }
+
+        // 2. Perform Room restoration within transaction.
+        val summary = try {
+            database.withTransaction {
+                var restoredEvents = 0
             var restoredCats = 0
             var restoredGroups = 0
             var restoredTypes = 0
@@ -326,6 +341,18 @@ class RoomBackupRepository(
                 attachmentsRestored = restoredAtts
             )
         }
+        } catch (e: Throwable) {
+            // Room transaction is automatically rolled back by Room.
+            // Compensate settings back to original snapshot so settings and database remain consistent.
+            if (settingsRepository != null && originalSettings != null) {
+                runCatching {
+                    settingsRepository?.updateSettings { originalSettings }
+                }
+            }
+            throw e
+        }
+
+        summary
     }
 
     override suspend fun exportBackupArchive(

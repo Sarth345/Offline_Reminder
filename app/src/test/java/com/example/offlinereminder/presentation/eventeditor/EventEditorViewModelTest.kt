@@ -14,6 +14,8 @@ import com.example.offlinereminder.domain.model.EventDateTime
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
 import com.example.offlinereminder.domain.model.EventType
 import com.example.offlinereminder.domain.model.Priority
+import com.example.offlinereminder.domain.model.AppSettings
+import com.example.offlinereminder.domain.repository.SettingsRepository
 import com.example.offlinereminder.domain.usecase.CreateEventUseCase
 import com.example.offlinereminder.domain.usecase.GetCategoriesUseCase
 import com.example.offlinereminder.domain.usecase.GetEventByIdUseCase
@@ -91,7 +93,9 @@ class EventEditorViewModelTest {
         getTagsUseCase = GetTagsUseCase(tagRepository)
     }
 
-    private fun createViewModel(): EventEditorViewModel = EventEditorViewModel(
+    private fun createViewModel(
+        settingsRepository: SettingsRepository? = null
+    ): EventEditorViewModel = EventEditorViewModel(
         getEventByIdUseCase = getEventByIdUseCase,
         createEventUseCase = createEventUseCase,
         updateEventUseCase = updateEventUseCase,
@@ -100,7 +104,8 @@ class EventEditorViewModelTest {
         getEventGroupsUseCase = getEventGroupsUseCase,
         getTagsUseCase = getTagsUseCase,
         timeProvider = timeProvider,
-        dispatcherProvider = dispatcherProvider
+        dispatcherProvider = dispatcherProvider,
+        settingsRepository = settingsRepository
     )
 
     @Test
@@ -197,5 +202,67 @@ class EventEditorViewModelTest {
         assertTrue(viewModel.uiState.value.isSaved)
         val saved = eventRepository.getEvent("existing_1")
         assertEquals("Updated Title", saved?.title)
+    }
+
+    @Test
+    fun initWithEvent_null_usesSettingsDefaultsForPriorityAndDuration() = runTest(testDispatcher) {
+        val fakeSettingsRepo = object : SettingsRepository {
+            override fun getSettingsFlow(): kotlinx.coroutines.flow.Flow<AppSettings> =
+                kotlinx.coroutines.flow.flow { emit(getSettings()) }
+            override suspend fun getSettings(): AppSettings = AppSettings(
+                defaultEventPriority = Priority.HIGH,
+                defaultEventDurationMinutes = 45
+            )
+            override suspend fun updateSettings(transform: (AppSettings) -> AppSettings) =
+                com.example.offlinereminder.core.result.Result.Success(getSettings())
+            override suspend fun resetSettings() =
+                com.example.offlinereminder.core.result.Result.Success(getSettings())
+        }
+
+        val viewModel = createViewModel(fakeSettingsRepo)
+        testScheduler.advanceUntilIdle()
+
+        viewModel.onAction(EventEditorAction.InitWithEvent(null))
+        testScheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(Priority.HIGH, state.priority)
+        assertNotNull(state.temporal)
+        assertTrue(state.temporal is EventDateTime.DateTimeRange)
+        val range = state.temporal as EventDateTime.DateTimeRange
+        val expectedEnd = range.startDateTime.plusMinutes(45)
+        assertEquals(expectedEnd, range.endDateTime)
+    }
+
+    @Test
+    fun initWithDefaults_usesSettingsDefaultsForPriorityAndDuration() = runTest(testDispatcher) {
+        val fakeSettingsRepo = object : SettingsRepository {
+            override fun getSettingsFlow(): kotlinx.coroutines.flow.Flow<AppSettings> =
+                kotlinx.coroutines.flow.flow { emit(getSettings()) }
+            override suspend fun getSettings(): AppSettings = AppSettings(
+                defaultEventPriority = Priority.CRITICAL,
+                defaultEventDurationMinutes = 60
+            )
+            override suspend fun updateSettings(transform: (AppSettings) -> AppSettings) =
+                com.example.offlinereminder.core.result.Result.Success(getSettings())
+            override suspend fun resetSettings() =
+                com.example.offlinereminder.core.result.Result.Success(getSettings())
+        }
+
+        val viewModel = createViewModel(fakeSettingsRepo)
+        testScheduler.advanceUntilIdle()
+
+        val date = LocalDate.of(2026, 11, 15)
+        viewModel.onAction(EventEditorAction.InitWithDefaults(date, "t_reminder"))
+        testScheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(Priority.CRITICAL, state.priority)
+        assertEquals("t_reminder", state.eventTypeId)
+        assertTrue(state.temporal is EventDateTime.DateTimeRange)
+        val range = state.temporal as EventDateTime.DateTimeRange
+        assertEquals(date, range.startDate)
+        val expectedEnd = range.startDateTime.plusMinutes(60)
+        assertEquals(expectedEnd, range.endDateTime)
     }
 }

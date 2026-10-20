@@ -505,4 +505,49 @@ class OfflineEventRepositoryTest {
         repository.removeRelationship("evt-a", "evt-b")
         assertTrue(repository.getRelationshipsForEvent("evt-a").first().isEmpty())
     }
+
+    @Test
+    fun countEventsByCategoryAndType_countsAllEventsRegardlessOfLifecycleStatus() = runTest {
+        seedCategoryAndType()
+
+        val activeEvent = Event(
+            id = "evt-count-active",
+            title = "Active Event",
+            eventTypeId = "type-general",
+            categoryId = "cat-personal",
+            lifecycleStatus = EventLifecycleStatus.ACTIVE,
+            temporal = EventDateTime.DateOnly(LocalDate.of(2026, 10, 20)),
+            createdAt = fixedInstant,
+            updatedAt = fixedInstant
+        )
+        val archivedEvent = Event(
+            id = "evt-count-archived",
+            title = "Archived Event",
+            eventTypeId = "type-general",
+            categoryId = "cat-personal",
+            lifecycleStatus = EventLifecycleStatus.ARCHIVED,
+            temporal = EventDateTime.DateOnly(LocalDate.of(2026, 10, 21)),
+            createdAt = fixedInstant,
+            updatedAt = fixedInstant
+        )
+        val trashedEvent = Event(
+            id = "evt-count-trashed",
+            title = "Trashed Event",
+            eventTypeId = "type-general",
+            categoryId = "cat-personal",
+            lifecycleStatus = EventLifecycleStatus.TRASHED,
+            temporal = EventDateTime.DateOnly(LocalDate.of(2026, 10, 22)),
+            createdAt = fixedInstant,
+            updatedAt = fixedInstant
+        )
+
+        repository.saveEvent(activeEvent)
+        repository.saveEvent(archivedEvent)
+        repository.saveEvent(trashedEvent)
+
+        assertEquals(3, repository.countEventsByCategory("cat-personal"))
+        assertEquals(3, repository.countEventsByEventType("type-general"))
+        assertEquals(0, repository.countEventsByCategory("cat-nonexistent"))
+        assertEquals(0, repository.countEventsByEventType("type-nonexistent"))
+    }
 }

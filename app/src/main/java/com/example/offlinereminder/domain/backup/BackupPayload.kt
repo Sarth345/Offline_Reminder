@@ -186,7 +186,16 @@ data class EventRelationshipBackupDto(
 
 @Serializable
 data class SettingsBackupDto(
-    val quietHours: QuietHoursBackupDto? = null
+    val themeMode: String = "SYSTEM",
+    val use24HourFormat: Boolean = false,
+    val dateFormat: String = "SYSTEM_DEFAULT",
+    val firstDayOfWeek: String = "MONDAY",
+    val defaultEventPriority: String = "NORMAL",
+    val defaultEventDurationMinutes: Int = 60,
+    val defaultSnoozeDurationMinutes: Int = 10,
+    val soundEnabled: Boolean = true,
+    val vibrationEnabled: Boolean = true,
+    val quietHours: QuietHoursBackupDto = QuietHoursBackupDto()
 )
 
 @Serializable

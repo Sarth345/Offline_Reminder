@@ -234,4 +234,80 @@ class BackupSerializationAndValidationTest {
         assertEquals("17:30:00", restoredTemporal.endTime)
         assertEquals("America/New_York", restoredTemporal.zoneId)
     }
+
+    @Test
+    fun serializeAndDeserialize_withSettingsDto_preservesAllSettingsFields() {
+        val customSettings = SettingsBackupDto(
+            themeMode = "DARK",
+            use24HourFormat = true,
+            dateFormat = "DMY",
+            firstDayOfWeek = "MONDAY",
+            defaultEventPriority = "CRITICAL",
+            defaultEventDurationMinutes = 45,
+            defaultSnoozeDurationMinutes = 20,
+            soundEnabled = false,
+            vibrationEnabled = false,
+            quietHours = QuietHoursBackupDto(
+                enabled = true,
+                startLocalTime = "23:00",
+                endLocalTime = "07:30",
+                policy = "SILENT",
+                allowCritical = false
+            )
+        )
+        val payloadWithSettings = samplePayload.copy(settings = customSettings)
+
+        val jsonStr = json.encodeToString(BackupPayload.serializer(), payloadWithSettings)
+        val deserialized = json.decodeFromString(BackupPayload.serializer(), jsonStr)
+
+        assertEquals("DARK", deserialized.settings.themeMode)
+        assertEquals(true, deserialized.settings.use24HourFormat)
+        assertEquals("DMY", deserialized.settings.dateFormat)
+        assertEquals("CRITICAL", deserialized.settings.defaultEventPriority)
+        assertEquals(45, deserialized.settings.defaultEventDurationMinutes)
+        assertEquals(20, deserialized.settings.defaultSnoozeDurationMinutes)
+        assertEquals(false, deserialized.settings.soundEnabled)
+        assertEquals(true, deserialized.settings.quietHours.enabled)
+        assertEquals("23:00", deserialized.settings.quietHours.startLocalTime)
+        assertEquals("07:30", deserialized.settings.quietHours.endLocalTime)
+        assertEquals("SILENT", deserialized.settings.quietHours.policy)
+    }
+
+    @Test
+    fun validate_invalidThemeMode_returnsFailure() {
+        val badSettings = SettingsBackupDto(themeMode = "RAINBOW")
+        val badPayload = samplePayload.copy(settings = badSettings)
+        val result = validator.validate(badPayload)
+        assertTrue(result is Result.Failure)
+        assertTrue((result as Result.Failure).error.message!!.contains("themeMode", ignoreCase = true))
+    }
+
+    @Test
+    fun validate_invalidDateFormat_returnsFailure() {
+        val badSettings = SettingsBackupDto(dateFormat = "INVALID_FORMAT")
+        val badPayload = samplePayload.copy(settings = badSettings)
+        val result = validator.validate(badPayload)
+        assertTrue(result is Result.Failure)
+        assertTrue((result as Result.Failure).error.message!!.contains("dateFormat", ignoreCase = true))
+    }
+
+    @Test
+    fun validate_invalidQuietHoursFormat_returnsFailure() {
+        val badSettings = SettingsBackupDto(
+            quietHours = QuietHoursBackupDto(startLocalTime = "25:99")
+        )
+        val badPayload = samplePayload.copy(settings = badSettings)
+        val result = validator.validate(badPayload)
+        assertTrue(result is Result.Failure)
+        assertTrue((result as Result.Failure).error.message!!.contains("QuietHours has malformed time", ignoreCase = true))
+    }
+
+    @Test
+    fun validate_negativeDefaultEventDuration_returnsFailure() {
+        val badSettings = SettingsBackupDto(defaultEventDurationMinutes = -15)
+        val badPayload = samplePayload.copy(settings = badSettings)
+        val result = validator.validate(badPayload)
+        assertTrue(result is Result.Failure)
+        assertTrue((result as Result.Failure).error.message!!.contains("defaultEventDurationMinutes must be positive", ignoreCase = true))
+    }
 }

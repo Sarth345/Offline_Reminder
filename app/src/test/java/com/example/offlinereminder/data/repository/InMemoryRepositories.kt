@@ -92,6 +92,12 @@ class InMemoryEventRepository : EventRepository {
         val event = events.value[id] ?: return@runCatching
         saveEvent(event.copy(isFavorite = isFavorite))
     }
+
+    override suspend fun countEventsByCategory(categoryId: String): Int =
+        events.value.values.count { it.categoryId == categoryId }
+
+    override suspend fun countEventsByEventType(eventTypeId: String): Int =
+        events.value.values.count { it.eventTypeId == eventTypeId }
 }
 
 /**

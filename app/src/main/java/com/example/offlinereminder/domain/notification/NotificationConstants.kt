@@ -15,6 +15,7 @@ object NotificationConstants {
     const val EXTRA_OCCURRENCE_ZONE = "extra_occurrence_zone"
     const val EXTRA_SNOOZE_DURATION_MILLIS = "extra_snooze_duration_millis"
     const val EXTRA_NOTIFICATION_ID = "extra_notification_id"
+    const val EXTRA_IS_SILENT = "extra_is_silent"
 
     const val CHANNEL_ID_DEFAULT = "offline_reminders_default"
     const val CHANNEL_ID_SILENT = "offline_reminders_silent"

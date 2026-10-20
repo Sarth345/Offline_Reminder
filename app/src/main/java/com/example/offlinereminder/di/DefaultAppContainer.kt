@@ -2,6 +2,8 @@ package com.example.offlinereminder.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.preferencesDataStoreFile
 import com.example.offlinereminder.core.dispatcher.DefaultDispatcherProvider
 import com.example.offlinereminder.core.dispatcher.DispatcherProvider
 import com.example.offlinereminder.core.time.SystemTimeProvider
@@ -119,7 +121,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             notificationRepository = notificationRepository,
             alarmScheduler = alarmScheduler,
             recurrenceEngine = recurrenceEngine,
-            timeProvider = timeProvider
+            timeProvider = timeProvider,
+            settingsRepository = settingsRepository
         )
     }
 
@@ -311,11 +314,56 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
+    override val settingsRepository: com.example.offlinereminder.domain.repository.SettingsRepository by lazy {
+        com.example.offlinereminder.data.repository.DataStoreSettingsRepository(
+            dataStore = PreferenceDataStoreFactory.create(
+                produceFile = { context.preferencesDataStoreFile("app_settings") }
+            )
+        )
+    }
+
+    override val getSettingsUseCase: com.example.offlinereminder.domain.usecase.GetSettingsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetSettingsUseCase(settingsRepository)
+    }
+
+    override val updateSettingsUseCase: com.example.offlinereminder.domain.usecase.UpdateSettingsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.UpdateSettingsUseCase(settingsRepository)
+    }
+
+    override val resetSettingsUseCase: com.example.offlinereminder.domain.usecase.ResetSettingsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.ResetSettingsUseCase(settingsRepository)
+    }
+
+    override val createCategoryUseCase: com.example.offlinereminder.domain.usecase.CreateCategoryUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.CreateCategoryUseCase(categoryRepository)
+    }
+
+    override val updateCategoryUseCase: com.example.offlinereminder.domain.usecase.UpdateCategoryUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.UpdateCategoryUseCase(categoryRepository)
+    }
+
+    override val deleteCategoryUseCase: com.example.offlinereminder.domain.usecase.DeleteCategoryUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DeleteCategoryUseCase(categoryRepository, eventRepository, eventTypeRepository)
+    }
+
+    override val createEventTypeUseCase: com.example.offlinereminder.domain.usecase.CreateEventTypeUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.CreateEventTypeUseCase(eventTypeRepository, categoryRepository, timeProvider)
+    }
+
+    override val updateEventTypeUseCase: com.example.offlinereminder.domain.usecase.UpdateEventTypeUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.UpdateEventTypeUseCase(eventTypeRepository, categoryRepository)
+    }
+
+    override val deleteEventTypeUseCase: com.example.offlinereminder.domain.usecase.DeleteEventTypeUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DeleteEventTypeUseCase(eventTypeRepository, eventRepository)
+    }
+
     override val backupRepository: com.example.offlinereminder.domain.backup.BackupRepository by lazy {
         com.example.offlinereminder.data.repository.RoomBackupRepository(
             database = database,
             timeProvider = timeProvider,
-            attachmentsDir = context.filesDir
+            attachmentsDir = context.filesDir,
+            settingsRepository = settingsRepository
         )
     }
 
@@ -328,7 +376,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             backupRepository = backupRepository,
             eventRepository = eventRepository,
             occurrenceExceptionRepository = occurrenceExceptionRepository,
-            scheduleNotificationsForEventUseCase = scheduleNotificationsForEventUseCase
+            scheduleNotificationsForEventUseCase = scheduleNotificationsForEventUseCase,
+            settingsRepository = settingsRepository
         )
     }
 }

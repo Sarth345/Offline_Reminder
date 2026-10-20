@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.room.Room
+import com.example.offlinereminder.OfflineReminderApplication
 import com.example.offlinereminder.core.time.SystemTimeProvider
 import com.example.offlinereminder.data.local.AppDatabase
 import com.example.offlinereminder.data.local.mapper.toDomain
@@ -89,10 +90,17 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     }
 
                     NotificationConstants.ACTION_SNOOZE -> {
-                        val durationMillis = intent.getLongExtra(
-                            NotificationConstants.EXTRA_SNOOZE_DURATION_MILLIS,
-                            10 * 60 * 1000L
-                        )
+                        val extraDuration = intent.getLongExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MILLIS, -1L)
+                        val durationMillis = if (extraDuration > 0L) {
+                            extraDuration
+                        } else {
+                            val defaultMinutes = try {
+                                (context.applicationContext as? OfflineReminderApplication)?.container?.settingsRepository?.getSettings()?.defaultSnoozeDurationMinutes ?: 10
+                            } catch (_: Exception) {
+                                10
+                            }
+                            defaultMinutes * 60 * 1000L
+                        }
                         if (instanceId != null) {
                             val snoozeUseCase = SnoozeNotificationUseCase(notificationRepo, alarmScheduler, timeProvider)
                             snoozeUseCase(instanceId, Duration.ofMillis(durationMillis))

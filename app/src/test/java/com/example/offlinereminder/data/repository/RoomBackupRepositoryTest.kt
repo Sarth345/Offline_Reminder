@@ -568,4 +568,169 @@ class RoomBackupRepositoryTest {
         assertEquals(1, exceptions.size)
         assertEquals(LocalDateTime.parse("2026-10-25T11:00:00"), exceptions.first().rescheduledStartDateTime)
     }
+
+    @Test
+    fun backupAndRestore_withSettingsRepository_exportsAndRestoresPreferences() = runTest {
+        val fakeSettingsRepo = object : com.example.offlinereminder.domain.repository.SettingsRepository {
+            var settings = com.example.offlinereminder.domain.model.AppSettings(
+                themeMode = com.example.offlinereminder.domain.model.ThemeMode.DARK,
+                use24HourFormat = true,
+                defaultEventDurationMinutes = 45
+            )
+            override fun getSettingsFlow(): kotlinx.coroutines.flow.Flow<com.example.offlinereminder.domain.model.AppSettings> =
+                kotlinx.coroutines.flow.flowOf(settings)
+            override suspend fun getSettings(): com.example.offlinereminder.domain.model.AppSettings = settings
+            override suspend fun updateSettings(
+                transform: (com.example.offlinereminder.domain.model.AppSettings) -> com.example.offlinereminder.domain.model.AppSettings
+            ): com.example.offlinereminder.core.result.Result<com.example.offlinereminder.domain.model.AppSettings> {
+                settings = transform(settings)
+                return com.example.offlinereminder.core.result.Result.Success(settings)
+            }
+            override suspend fun resetSettings(): com.example.offlinereminder.core.result.Result<com.example.offlinereminder.domain.model.AppSettings> {
+                settings = com.example.offlinereminder.domain.model.AppSettings()
+                return com.example.offlinereminder.core.result.Result.Success(settings)
+            }
+        }
+
+        val repoWithSettings = RoomBackupRepository(
+            database = db,
+            timeProvider = testTimeProvider,
+            attachmentsDir = tempDir,
+            settingsRepository = fakeSettingsRepo
+        )
+
+        // 1. Export payload
+        val exportResult = repoWithSettings.createBackupPayload()
+        assertTrue(exportResult.isSuccess)
+        val payload = exportResult.getOrThrow()
+        assertEquals("DARK", payload.settings.themeMode)
+        assertEquals(true, payload.settings.use24HourFormat)
+        assertEquals(45, payload.settings.defaultEventDurationMinutes)
+
+        // 2. Modify settings
+        fakeSettingsRepo.settings = com.example.offlinereminder.domain.model.AppSettings(
+            themeMode = com.example.offlinereminder.domain.model.ThemeMode.LIGHT
+        )
+
+        // 3. Restore payload
+        val restoreResult = repoWithSettings.restoreBackupPayload(payload, RestoreStrategy.REPLACE_ALL)
+        assertTrue(restoreResult.isSuccess)
+
+        // 4. Verify settings restored
+        assertEquals(com.example.offlinereminder.domain.model.ThemeMode.DARK, fakeSettingsRepo.settings.themeMode)
+        assertEquals(true, fakeSettingsRepo.settings.use24HourFormat)
+        assertEquals(45, fakeSettingsRepo.settings.defaultEventDurationMinutes)
+    }
+
+    @Test
+    fun restoreBackupPayload_whenDatabaseFails_rollsBackSettingsToOriginalSnapshot() = runTest {
+        val initialSettings = com.example.offlinereminder.domain.model.AppSettings(
+            themeMode = com.example.offlinereminder.domain.model.ThemeMode.LIGHT,
+            use24HourFormat = false,
+            defaultEventDurationMinutes = 30
+        )
+        val fakeSettingsRepo = object : com.example.offlinereminder.domain.repository.SettingsRepository {
+            var settings = initialSettings
+            override fun getSettingsFlow(): kotlinx.coroutines.flow.Flow<com.example.offlinereminder.domain.model.AppSettings> =
+                kotlinx.coroutines.flow.flowOf(settings)
+            override suspend fun getSettings(): com.example.offlinereminder.domain.model.AppSettings = settings
+            override suspend fun updateSettings(
+                transform: (com.example.offlinereminder.domain.model.AppSettings) -> com.example.offlinereminder.domain.model.AppSettings
+            ): com.example.offlinereminder.core.result.Result<com.example.offlinereminder.domain.model.AppSettings> {
+                settings = transform(settings)
+                return com.example.offlinereminder.core.result.Result.Success(settings)
+            }
+            override suspend fun resetSettings(): com.example.offlinereminder.core.result.Result<com.example.offlinereminder.domain.model.AppSettings> {
+                settings = com.example.offlinereminder.domain.model.AppSettings()
+                return com.example.offlinereminder.core.result.Result.Success(settings)
+            }
+        }
+
+        val repoWithSettings = RoomBackupRepository(
+            database = db,
+            timeProvider = testTimeProvider,
+            attachmentsDir = tempDir,
+            settingsRepository = fakeSettingsRepo
+        )
+
+        // Construct a payload where an event references non-existent foreign keys.
+        // BackupValidator allows this when categories/types are empty (assuming existing taxonomy),
+        // but REPLACE_ALL wipes taxonomy first, guaranteeing a SQLite foreign key constraint failure.
+        val payload = BackupPayload(
+            backupVersion = 1,
+            exportedAt = "2026-10-20T10:00:00Z",
+            events = listOf(
+                EventBackupDto(
+                    id = "evt-foreign-key-fail",
+                    title = "Test FK Failure",
+                    categoryId = "missing-cat-id",
+                    eventTypeId = "missing-type-id",
+                    temporal = TemporalBackupDto(type = "DATE_ONLY", startDate = "2026-10-20"),
+                    createdAt = "2026-10-20T10:00:00Z",
+                    updatedAt = "2026-10-20T10:00:00Z"
+                )
+            ),
+            settings = com.example.offlinereminder.domain.backup.SettingsBackupDto(
+                themeMode = "DARK",
+                use24HourFormat = true,
+                defaultEventDurationMinutes = 90
+            )
+        )
+
+        val restoreResult = repoWithSettings.restoreBackupPayload(payload, RestoreStrategy.REPLACE_ALL)
+        assertTrue(restoreResult.isFailure)
+
+        // Verify settings were rolled back to original snapshot
+        assertEquals(com.example.offlinereminder.domain.model.ThemeMode.LIGHT, fakeSettingsRepo.settings.themeMode)
+        assertEquals(false, fakeSettingsRepo.settings.use24HourFormat)
+        assertEquals(30, fakeSettingsRepo.settings.defaultEventDurationMinutes)
+    }
+
+    @Test
+    fun restoreBackupPayload_whenSettingsFails_abortsBeforeTouchingDatabase() = runTest {
+        // Pre-populate database with an entity
+        db.categoryDao().insert(CategoryEntity("cat-preserved", "Preserved Category", isCustom = true, sortOrder = 1))
+
+        val fakeFailingSettingsRepo = object : com.example.offlinereminder.domain.repository.SettingsRepository {
+            var settings = com.example.offlinereminder.domain.model.AppSettings()
+            override fun getSettingsFlow(): kotlinx.coroutines.flow.Flow<com.example.offlinereminder.domain.model.AppSettings> =
+                kotlinx.coroutines.flow.flowOf(settings)
+            override suspend fun getSettings(): com.example.offlinereminder.domain.model.AppSettings = settings
+            override suspend fun updateSettings(
+                transform: (com.example.offlinereminder.domain.model.AppSettings) -> com.example.offlinereminder.domain.model.AppSettings
+            ): com.example.offlinereminder.core.result.Result<com.example.offlinereminder.domain.model.AppSettings> {
+                return com.example.offlinereminder.core.result.Result.Failure(IllegalStateException("DataStore disk I/O error"))
+            }
+            override suspend fun resetSettings(): com.example.offlinereminder.core.result.Result<com.example.offlinereminder.domain.model.AppSettings> {
+                return com.example.offlinereminder.core.result.Result.Failure(IllegalStateException("DataStore disk I/O error"))
+            }
+        }
+
+        val repoWithSettings = RoomBackupRepository(
+            database = db,
+            timeProvider = testTimeProvider,
+            attachmentsDir = tempDir,
+            settingsRepository = fakeFailingSettingsRepo
+        )
+
+        val payload = BackupPayload(
+            backupVersion = 1,
+            exportedAt = "2026-10-20T10:00:00Z",
+            categories = listOf(
+                CategoryBackupDto("cat-incoming", "Incoming Category", isCustom = true, sortOrder = 2)
+            )
+        )
+
+        // Restore with REPLACE_ALL strategy (which would wipe cat-preserved if it executed)
+        val restoreResult = repoWithSettings.restoreBackupPayload(payload, RestoreStrategy.REPLACE_ALL)
+        assertTrue(restoreResult.isFailure)
+
+        // Verify the database was NEVER wiped or modified
+        val existingCategory = db.categoryDao().getById("cat-preserved")
+        assertNotNull(existingCategory)
+        assertEquals("Preserved Category", existingCategory?.name)
+
+        val incomingCategory = db.categoryDao().getById("cat-incoming")
+        assertEquals(null, incomingCategory)
+    }
 }

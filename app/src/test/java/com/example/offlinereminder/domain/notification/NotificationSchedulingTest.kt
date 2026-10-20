@@ -414,6 +414,44 @@ class NotificationSchedulingTest {
         val instances = inMemoryRepository.getInstancesForEvent(event.id)
         assertEquals(3, instances.size)
     }
+
+    @Test
+    fun `13 quiet hours and silent flag are propagated via settings repository`() = runBlocking {
+        val fakeSettingsRepo = object : com.example.offlinereminder.domain.repository.SettingsRepository {
+            override fun getSettingsFlow(): Flow<com.example.offlinereminder.domain.model.AppSettings> =
+                kotlinx.coroutines.flow.flow { emit(getSettings()) }
+            override suspend fun getSettings(): com.example.offlinereminder.domain.model.AppSettings =
+                com.example.offlinereminder.domain.model.AppSettings(
+                    quietHours = com.example.offlinereminder.domain.model.QuietHours(
+                        enabled = true,
+                        startLocalTime = java.time.LocalTime.of(22, 0),
+                        endLocalTime = java.time.LocalTime.of(7, 0),
+                        policy = com.example.offlinereminder.domain.model.QuietHoursPolicy.SILENT,
+                        allowCritical = false
+                    )
+                )
+            override suspend fun updateSettings(transform: (com.example.offlinereminder.domain.model.AppSettings) -> com.example.offlinereminder.domain.model.AppSettings) =
+                Result.Success(getSettings())
+            override suspend fun resetSettings() = Result.Success(getSettings())
+        }
+
+        val useCaseWithSettings = ScheduleNotificationsForEventUseCase(
+            notificationRepository = inMemoryRepository,
+            alarmScheduler = testAlarmScheduler,
+            recurrenceEngine = recurrenceEngine,
+            timeProvider = timeProvider,
+            settingsRepository = fakeSettingsRepo
+        )
+
+        // Event scheduled at 23:00 (during quiet hours)
+        val event = createEvent(startLdt = LocalDateTime.of(2026, 10, 25, 23, 0))
+        val result = useCaseWithSettings(event)
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, testAlarmScheduler.scheduledAlarms.size)
+        val alarm = testAlarmScheduler.scheduledAlarms.first()
+        assertEquals("true", alarm.extras[NotificationConstants.EXTRA_IS_SILENT])
+    }
 }
 
 /**
