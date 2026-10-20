@@ -10,6 +10,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.offlinereminder.di.ViewModelFactory
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
+import com.example.offlinereminder.presentation.calendar.CalendarScreen
+import com.example.offlinereminder.presentation.calendar.CalendarViewModel
 import com.example.offlinereminder.presentation.dashboard.DashboardScreen
 import com.example.offlinereminder.presentation.dashboard.DashboardViewModel
 import com.example.offlinereminder.presentation.eventdetail.EventDetailScreen
@@ -19,6 +21,10 @@ import com.example.offlinereminder.presentation.eventeditor.EventEditorViewModel
 import com.example.offlinereminder.presentation.eventlist.EventListAction
 import com.example.offlinereminder.presentation.eventlist.EventListScreen
 import com.example.offlinereminder.presentation.eventlist.EventListViewModel
+import com.example.offlinereminder.presentation.groups.GroupDetailScreen
+import com.example.offlinereminder.presentation.groups.GroupDetailViewModel
+import com.example.offlinereminder.presentation.groups.GroupsScreen
+import com.example.offlinereminder.presentation.groups.GroupsViewModel
 import com.example.offlinereminder.presentation.upcoming.UpcomingScreen
 import com.example.offlinereminder.presentation.upcoming.UpcomingViewModel
 
@@ -93,16 +99,49 @@ fun OfflineReminderNavGraph(
             )
         }
 
-        // 5. Calendar route (points to EventList for primary view)
+        // 5. Calendar
         composable(route = Screen.Calendar.route) {
-            val eventListViewModel: EventListViewModel = viewModel(factory = viewModelFactory)
-            EventListScreen(
-                viewModel = eventListViewModel,
+            val calendarViewModel: CalendarViewModel = viewModel(factory = viewModelFactory)
+            CalendarScreen(
+                viewModel = calendarViewModel,
                 onNavigateToDetails = { eventId ->
                     navController.navigate(Screen.EventDetails.createRoute(eventId))
                 },
-                onNavigateToAddEvent = {
-                    navController.navigate(Screen.EventEditor.createRoute())
+                onNavigateToAddEventWithDate = { localDate ->
+                    navController.navigate(Screen.EventEditor.createRoute(initialDate = localDate.toString()))
+                }
+            )
+        }
+
+        // 6. Groups List
+        composable(route = Screen.Groups.route) {
+            val groupsViewModel: GroupsViewModel = viewModel(factory = viewModelFactory)
+            GroupsScreen(
+                viewModel = groupsViewModel,
+                onNavigateToGroupDetails = { groupId ->
+                    navController.navigate(Screen.GroupDetails.createRoute(groupId))
+                }
+            )
+        }
+
+        // 7. Group Detail
+        composable(
+            route = Screen.GroupDetails.route,
+            arguments = listOf(
+                navArgument("groupId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            val groupDetailViewModel: GroupDetailViewModel = viewModel(
+                key = "group_detail_$groupId",
+                factory = viewModelFactory
+            )
+            GroupDetailScreen(
+                groupId = groupId,
+                viewModel = groupDetailViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDetails = { eventId ->
+                    navController.navigate(Screen.EventDetails.createRoute(eventId))
                 }
             )
         }

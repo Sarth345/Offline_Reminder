@@ -87,4 +87,10 @@ interface AppContainer {
     val completeOccurrenceActionUseCase: CompleteOccurrenceActionUseCase
     val skipOccurrenceActionUseCase: SkipOccurrenceActionUseCase
     val rescheduleOccurrenceActionUseCase: RescheduleOccurrenceActionUseCase
+
+    val getCalendarOccurrencesUseCase: com.example.offlinereminder.domain.usecase.GetCalendarOccurrencesUseCase
+    val saveGroupUseCase: com.example.offlinereminder.domain.usecase.SaveGroupUseCase
+    val deleteGroupUseCase: com.example.offlinereminder.domain.usecase.DeleteGroupUseCase
+    val getGroupByIdUseCase: com.example.offlinereminder.domain.usecase.GetGroupByIdUseCase
+    val getActiveEventsForGroupUseCase: com.example.offlinereminder.domain.usecase.GetActiveEventsForGroupUseCase
 }

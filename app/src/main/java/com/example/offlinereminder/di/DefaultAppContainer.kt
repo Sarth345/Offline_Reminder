@@ -276,4 +276,29 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             timeProvider = timeProvider
         )
     }
+
+    override val getCalendarOccurrencesUseCase: com.example.offlinereminder.domain.usecase.GetCalendarOccurrencesUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetCalendarOccurrencesUseCase(
+            eventRepository = eventRepository,
+            occurrenceExceptionRepository = occurrenceExceptionRepository,
+            recurrenceEngine = recurrenceEngine,
+            timeProvider = timeProvider
+        )
+    }
+
+    override val saveGroupUseCase: com.example.offlinereminder.domain.usecase.SaveGroupUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.SaveGroupUseCase(eventGroupRepository)
+    }
+
+    override val deleteGroupUseCase: com.example.offlinereminder.domain.usecase.DeleteGroupUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DeleteGroupUseCase(eventGroupRepository)
+    }
+
+    override val getGroupByIdUseCase: com.example.offlinereminder.domain.usecase.GetGroupByIdUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetGroupByIdUseCase(eventGroupRepository)
+    }
+
+    override val getActiveEventsForGroupUseCase: com.example.offlinereminder.domain.usecase.GetActiveEventsForGroupUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetActiveEventsForGroupUseCase(eventGroupRepository)
+    }
 }

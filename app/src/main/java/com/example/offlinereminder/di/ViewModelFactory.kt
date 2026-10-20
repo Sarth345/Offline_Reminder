@@ -2,10 +2,13 @@ package com.example.offlinereminder.di
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.offlinereminder.presentation.calendar.CalendarViewModel
 import com.example.offlinereminder.presentation.dashboard.DashboardViewModel
 import com.example.offlinereminder.presentation.eventdetail.EventDetailViewModel
 import com.example.offlinereminder.presentation.eventeditor.EventEditorViewModel
 import com.example.offlinereminder.presentation.eventlist.EventListViewModel
+import com.example.offlinereminder.presentation.groups.GroupDetailViewModel
+import com.example.offlinereminder.presentation.groups.GroupsViewModel
 import com.example.offlinereminder.presentation.upcoming.UpcomingViewModel
 
 /**
@@ -81,6 +84,37 @@ class ViewModelFactory(
                     completeOccurrenceActionUseCase = appContainer.completeOccurrenceActionUseCase,
                     skipOccurrenceActionUseCase = appContainer.skipOccurrenceActionUseCase,
                     rescheduleOccurrenceActionUseCase = appContainer.rescheduleOccurrenceActionUseCase,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(CalendarViewModel::class.java) -> {
+                CalendarViewModel(
+                    getCalendarOccurrencesUseCase = appContainer.getCalendarOccurrencesUseCase,
+                    completeOccurrenceActionUseCase = appContainer.completeOccurrenceActionUseCase,
+                    skipOccurrenceActionUseCase = appContainer.skipOccurrenceActionUseCase,
+                    rescheduleOccurrenceActionUseCase = appContainer.rescheduleOccurrenceActionUseCase,
+                    timeProvider = appContainer.timeProvider,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(GroupsViewModel::class.java) -> {
+                GroupsViewModel(
+                    getEventGroupsUseCase = appContainer.getEventGroupsUseCase,
+                    saveGroupUseCase = appContainer.saveGroupUseCase,
+                    deleteGroupUseCase = appContainer.deleteGroupUseCase,
+                    eventGroupRepository = appContainer.eventGroupRepository,
+                    timeProvider = appContainer.timeProvider,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(GroupDetailViewModel::class.java) -> {
+                GroupDetailViewModel(
+                    getGroupByIdUseCase = appContainer.getGroupByIdUseCase,
+                    getActiveEventsForGroupUseCase = appContainer.getActiveEventsForGroupUseCase,
+                    saveGroupUseCase = appContainer.saveGroupUseCase,
+                    deleteGroupUseCase = appContainer.deleteGroupUseCase,
+                    eventGroupRepository = appContainer.eventGroupRepository,
+                    timeProvider = appContainer.timeProvider,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }

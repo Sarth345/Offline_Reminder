@@ -16,6 +16,7 @@ import com.example.offlinereminder.domain.repository.OccurrenceExceptionReposito
 import com.example.offlinereminder.domain.repository.TagRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -158,9 +159,12 @@ class InMemoryEventTypeRepository : EventTypeRepository {
 /**
  * In-memory test double for [EventGroupRepository].
  */
-class InMemoryEventGroupRepository : EventGroupRepository {
+class InMemoryEventGroupRepository(
+    private val eventRepository: InMemoryEventRepository? = null
+) : EventGroupRepository {
     val groups = MutableStateFlow<Map<String, EventGroup>>(emptyMap())
-    val memberships = mutableMapOf<String, MutableSet<String>>() // eventId -> setOf(groupId)
+    val memberships = MutableStateFlow<Map<String, Set<String>>>(emptyMap()) // eventId -> setOf(groupId)
+    val customGroupEvents = MutableStateFlow<Map<String, List<Event>>>(emptyMap())
 
     override fun getAllGroups(): Flow<List<EventGroup>> =
         groups.map { it.values.toList() }
@@ -178,13 +182,23 @@ class InMemoryEventGroupRepository : EventGroupRepository {
         }
 
     override fun getGroupsForEvent(eventId: String): Flow<List<EventGroup>> =
-        groups.map { map ->
-            val set = memberships[eventId] ?: emptySet()
-            map.values.filter { set.contains(it.id) }
+        combine(groups, memberships) { groupMap, membershipMap ->
+            val set = membershipMap[eventId] ?: emptySet()
+            groupMap.values.filter { set.contains(it.id) }
         }
 
-    override fun getActiveEventsForGroup(groupId: String): Flow<List<Event>> =
-        MutableStateFlow(emptyList())
+    override fun getActiveEventsForGroup(groupId: String): Flow<List<Event>> {
+        if (eventRepository != null) {
+            return combine(eventRepository.events, memberships) { eventMap, membershipMap ->
+                val matchingEventIds = membershipMap.filter { it.value.contains(groupId) }.keys
+                matchingEventIds.mapNotNull { id ->
+                    val evt = eventMap[id]
+                    if (evt != null && evt.lifecycleStatus == EventLifecycleStatus.ACTIVE) evt else null
+                }
+            }
+        }
+        return customGroupEvents.map { it[groupId] ?: emptyList() }
+    }
 
     override suspend fun saveGroup(group: EventGroup): Result<Unit> = Result.runCatching {
         val current = groups.value.toMutableMap()
@@ -196,14 +210,24 @@ class InMemoryEventGroupRepository : EventGroupRepository {
         val current = groups.value.toMutableMap()
         current.remove(id)
         groups.value = current
+        val currentMemberships = memberships.value.mapValues { (_, groupSet) -> groupSet - id }
+        memberships.value = currentMemberships
     }
 
     override suspend fun addEventToGroup(eventId: String, groupId: String): Result<Unit> = Result.runCatching {
-        memberships.getOrPut(eventId) { mutableSetOf() }.add(groupId)
+        val current = memberships.value.toMutableMap()
+        val set = current[eventId]?.toMutableSet() ?: mutableSetOf()
+        set.add(groupId)
+        current[eventId] = set
+        memberships.value = current
     }
 
     override suspend fun removeEventFromGroup(eventId: String, groupId: String): Result<Unit> = Result.runCatching {
-        memberships[eventId]?.remove(groupId)
+        val current = memberships.value.toMutableMap()
+        val set = current[eventId]?.toMutableSet() ?: mutableSetOf()
+        set.remove(groupId)
+        current[eventId] = set
+        memberships.value = current
     }
 }
 

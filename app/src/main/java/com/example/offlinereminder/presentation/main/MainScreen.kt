@@ -5,9 +5,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -39,9 +42,10 @@ data class BottomNavItem(
 
 val BottomNavItems = listOf(
     BottomNavItem(title = "Today", route = Screen.Dashboard.route, icon = Icons.Default.Home),
-    BottomNavItem(title = "Upcoming", route = Screen.Upcoming.route, icon = Icons.Default.DateRange),
+    BottomNavItem(title = "Calendar", route = Screen.Calendar.route, icon = Icons.Default.CalendarMonth),
+    BottomNavItem(title = "Upcoming", route = Screen.Upcoming.route, icon = Icons.Default.Schedule),
     BottomNavItem(title = "Reminders", route = Screen.EventList.route, icon = Icons.AutoMirrored.Filled.List),
-    BottomNavItem(title = "Completed", route = Screen.Completed.route, icon = Icons.Default.Check)
+    BottomNavItem(title = "Groups", route = Screen.Groups.route, icon = Icons.Default.Folder)
 )
 
 @Composable
@@ -56,10 +60,11 @@ fun MainScreen(
     // Show BottomBar and FAB only on primary top-level tabs
     val isTopLevelDestination = currentRoute in listOf(
         Screen.Dashboard.route,
+        Screen.Calendar.route,
         Screen.Upcoming.route,
         Screen.EventList.route,
-        Screen.Completed.route,
-        Screen.Calendar.route
+        Screen.Groups.route,
+        Screen.Completed.route
     )
 
     Scaffold(
