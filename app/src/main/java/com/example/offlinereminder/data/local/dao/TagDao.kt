@@ -76,6 +76,15 @@ interface TagDao {
     """)
     fun getActiveEventsForTagFlow(tagId: String): Flow<List<EventEntity>>
 
+    @androidx.room.Transaction
+    @Query("""
+        SELECT e.* FROM events e
+        INNER JOIN event_tag_cross_ref x ON e.id = x.event_id
+        WHERE x.tag_id = :tagId AND e.lifecycle_status = 'ACTIVE'
+        ORDER BY e.start_date ASC
+    """)
+    fun getActiveEventsWithDetailsForTagFlow(tagId: String): Flow<List<com.example.offlinereminder.data.local.relation.EventWithDetails>>
+
     @Query("SELECT COUNT(*) FROM tags")
     suspend fun count(): Int
 }

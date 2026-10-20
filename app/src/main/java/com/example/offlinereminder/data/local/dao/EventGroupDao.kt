@@ -79,6 +79,15 @@ interface EventGroupDao {
     fun getActiveEventsForGroupFlow(groupId: String): Flow<List<EventEntity>>
 
     @Transaction
+    @Query("""
+        SELECT e.* FROM events e
+        INNER JOIN event_group_cross_ref x ON e.id = x.event_id
+        WHERE x.group_id = :groupId AND e.lifecycle_status = 'ACTIVE'
+        ORDER BY e.start_date ASC
+    """)
+    fun getActiveEventsWithDetailsForGroupFlow(groupId: String): Flow<List<com.example.offlinereminder.data.local.relation.EventWithDetails>>
+
+    @Transaction
     @Query("SELECT * FROM event_groups WHERE id = :groupId")
     fun getGroupWithEventsFlow(groupId: String): Flow<EventGroupWithEvents?>
 
