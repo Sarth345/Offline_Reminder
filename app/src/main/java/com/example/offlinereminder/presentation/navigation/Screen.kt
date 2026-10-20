@@ -6,9 +6,10 @@ package com.example.offlinereminder.presentation.navigation
 sealed class Screen(val route: String) {
 
     // Primary Bottom Navigation Destinations
-    data object Calendar : Screen("calendar")
     data object Dashboard : Screen("dashboard")
     data object Upcoming : Screen("upcoming")
+    data object EventList : Screen("events")
+    data object Calendar : Screen("calendar")
     data object Groups : Screen("groups")
     data object Completed : Screen("completed")
     data object Settings : Screen("settings")
