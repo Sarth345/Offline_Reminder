@@ -301,4 +301,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val getActiveEventsForGroupUseCase: com.example.offlinereminder.domain.usecase.GetActiveEventsForGroupUseCase by lazy {
         com.example.offlinereminder.domain.usecase.GetActiveEventsForGroupUseCase(eventGroupRepository)
     }
+
+    override val searchEventsUseCase: com.example.offlinereminder.domain.usecase.SearchEventsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.SearchEventsUseCase(
+            eventRepository = eventRepository,
+            occurrenceExceptionRepository = occurrenceExceptionRepository,
+            recurrenceEngine = recurrenceEngine,
+            timeProvider = timeProvider
+        )
+    }
 }

@@ -9,6 +9,7 @@ import com.example.offlinereminder.presentation.eventeditor.EventEditorViewModel
 import com.example.offlinereminder.presentation.eventlist.EventListViewModel
 import com.example.offlinereminder.presentation.groups.GroupDetailViewModel
 import com.example.offlinereminder.presentation.groups.GroupsViewModel
+import com.example.offlinereminder.presentation.search.SearchViewModel
 import com.example.offlinereminder.presentation.upcoming.UpcomingViewModel
 
 /**
@@ -115,6 +116,17 @@ class ViewModelFactory(
                     deleteGroupUseCase = appContainer.deleteGroupUseCase,
                     eventGroupRepository = appContainer.eventGroupRepository,
                     timeProvider = appContainer.timeProvider,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
+                SearchViewModel(
+                    searchEventsUseCase = appContainer.searchEventsUseCase,
+                    getCategoriesUseCase = appContainer.getCategoriesUseCase,
+                    getEventTypesUseCase = appContainer.getEventTypesUseCase,
+                    getEventGroupsUseCase = appContainer.getEventGroupsUseCase,
+                    getTagsUseCase = appContainer.getTagsUseCase,
+                    eventRepository = appContainer.eventRepository,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }

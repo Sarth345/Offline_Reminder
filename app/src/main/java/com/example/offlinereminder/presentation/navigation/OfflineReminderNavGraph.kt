@@ -25,6 +25,8 @@ import com.example.offlinereminder.presentation.groups.GroupDetailScreen
 import com.example.offlinereminder.presentation.groups.GroupDetailViewModel
 import com.example.offlinereminder.presentation.groups.GroupsScreen
 import com.example.offlinereminder.presentation.groups.GroupsViewModel
+import com.example.offlinereminder.presentation.search.SearchScreen
+import com.example.offlinereminder.presentation.search.SearchViewModel
 import com.example.offlinereminder.presentation.upcoming.UpcomingScreen
 import com.example.offlinereminder.presentation.upcoming.UpcomingViewModel
 
@@ -203,6 +205,18 @@ fun OfflineReminderNavGraph(
                 initialEventTypeId = eventTypeId,
                 viewModel = eventEditorViewModel,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 8. Search & Advanced Discovery
+        composable(route = Screen.Search.route) {
+            val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
+            SearchScreen(
+                viewModel = searchViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDetails = { eventId ->
+                    navController.navigate(Screen.EventDetails.createRoute(eventId))
+                }
             )
         }
     }

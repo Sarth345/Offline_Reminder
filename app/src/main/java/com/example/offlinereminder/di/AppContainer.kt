@@ -93,4 +93,5 @@ interface AppContainer {
     val deleteGroupUseCase: com.example.offlinereminder.domain.usecase.DeleteGroupUseCase
     val getGroupByIdUseCase: com.example.offlinereminder.domain.usecase.GetGroupByIdUseCase
     val getActiveEventsForGroupUseCase: com.example.offlinereminder.domain.usecase.GetActiveEventsForGroupUseCase
+    val searchEventsUseCase: com.example.offlinereminder.domain.usecase.SearchEventsUseCase
 }
