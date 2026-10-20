@@ -27,6 +27,8 @@ import com.example.offlinereminder.presentation.groups.GroupsScreen
 import com.example.offlinereminder.presentation.groups.GroupsViewModel
 import com.example.offlinereminder.presentation.search.SearchScreen
 import com.example.offlinereminder.presentation.search.SearchViewModel
+import com.example.offlinereminder.presentation.settings.SettingsScreen
+import com.example.offlinereminder.presentation.settings.SettingsViewModel
 import com.example.offlinereminder.presentation.upcoming.UpcomingScreen
 import com.example.offlinereminder.presentation.upcoming.UpcomingViewModel
 
@@ -51,6 +53,9 @@ fun OfflineReminderNavGraph(
                 },
                 onNavigateToAddEvent = {
                     navController.navigate(Screen.EventEditor.createRoute())
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }
@@ -217,6 +222,15 @@ fun OfflineReminderNavGraph(
                 onNavigateToDetails = { eventId ->
                     navController.navigate(Screen.EventDetails.createRoute(eventId))
                 }
+            )
+        }
+
+        // 9. Settings & Data Management / Backup
+        composable(route = Screen.Settings.route) {
+            val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
+            SettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

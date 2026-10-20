@@ -94,4 +94,7 @@ interface AppContainer {
     val getGroupByIdUseCase: com.example.offlinereminder.domain.usecase.GetGroupByIdUseCase
     val getActiveEventsForGroupUseCase: com.example.offlinereminder.domain.usecase.GetActiveEventsForGroupUseCase
     val searchEventsUseCase: com.example.offlinereminder.domain.usecase.SearchEventsUseCase
+    val backupRepository: com.example.offlinereminder.domain.backup.BackupRepository
+    val exportBackupUseCase: com.example.offlinereminder.domain.usecase.ExportBackupUseCase
+    val restoreBackupUseCase: com.example.offlinereminder.domain.usecase.RestoreBackupUseCase
 }

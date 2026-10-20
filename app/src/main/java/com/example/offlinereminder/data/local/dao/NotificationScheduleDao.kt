@@ -32,4 +32,10 @@ interface NotificationScheduleDao {
 
     @Query("SELECT * FROM notification_schedules WHERE event_id = :eventId")
     fun getSchedulesForEventFlow(eventId: String): Flow<List<NotificationScheduleEntity>>
+
+    @Query("SELECT * FROM notification_schedules")
+    suspend fun getAll(): List<NotificationScheduleEntity>
+
+    @Query("DELETE FROM notification_schedules")
+    suspend fun deleteAll()
 }

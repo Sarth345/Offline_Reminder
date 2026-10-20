@@ -38,4 +38,10 @@ interface AttachmentDao {
 
     @Query("SELECT * FROM event_attachments WHERE event_id = :eventId ORDER BY created_at ASC")
     suspend fun getAttachmentsForEvent(eventId: String): List<AttachmentEntity>
+
+    @Query("SELECT * FROM event_attachments")
+    suspend fun getAll(): List<AttachmentEntity>
+
+    @Query("DELETE FROM event_attachments")
+    suspend fun deleteAll()
 }

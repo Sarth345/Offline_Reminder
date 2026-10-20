@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.example.offlinereminder.data.local.entity.EventTypeEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -17,6 +18,12 @@ interface EventTypeDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(eventTypes: List<EventTypeEntity>)
+
+    @Upsert
+    suspend fun upsert(eventType: EventTypeEntity)
+
+    @Upsert
+    suspend fun upsertAll(eventTypes: List<EventTypeEntity>)
 
     @Update
     suspend fun update(eventType: EventTypeEntity)
@@ -44,4 +51,10 @@ interface EventTypeDao {
 
     @Query("SELECT COUNT(*) FROM event_types")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM event_types ORDER BY is_pinned DESC, name ASC")
+    suspend fun getAll(): List<EventTypeEntity>
+
+    @Query("DELETE FROM event_types")
+    suspend fun deleteAll()
 }

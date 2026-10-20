@@ -310,4 +310,25 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             timeProvider = timeProvider
         )
     }
+
+    override val backupRepository: com.example.offlinereminder.domain.backup.BackupRepository by lazy {
+        com.example.offlinereminder.data.repository.RoomBackupRepository(
+            database = database,
+            timeProvider = timeProvider,
+            attachmentsDir = context.filesDir
+        )
+    }
+
+    override val exportBackupUseCase: com.example.offlinereminder.domain.usecase.ExportBackupUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.ExportBackupUseCase(backupRepository)
+    }
+
+    override val restoreBackupUseCase: com.example.offlinereminder.domain.usecase.RestoreBackupUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.RestoreBackupUseCase(
+            backupRepository = backupRepository,
+            eventRepository = eventRepository,
+            occurrenceExceptionRepository = occurrenceExceptionRepository,
+            scheduleNotificationsForEventUseCase = scheduleNotificationsForEventUseCase
+        )
+    }
 }

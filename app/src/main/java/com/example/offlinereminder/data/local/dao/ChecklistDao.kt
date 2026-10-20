@@ -18,6 +18,9 @@ interface ChecklistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChecklist(checklist: ChecklistEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertChecklists(checklists: List<ChecklistEntity>)
+
     @Update
     suspend fun updateChecklist(checklist: ChecklistEntity)
 
@@ -58,4 +61,10 @@ interface ChecklistDao {
 
     @Query("SELECT * FROM checklist_items WHERE checklist_id = :checklistId ORDER BY sort_order ASC")
     fun getItemsForChecklistFlow(checklistId: String): Flow<List<ChecklistItemEntity>>
+
+    @Query("DELETE FROM checklists")
+    suspend fun deleteAllChecklists()
+
+    @Query("DELETE FROM checklist_items")
+    suspend fun deleteAllItems()
 }

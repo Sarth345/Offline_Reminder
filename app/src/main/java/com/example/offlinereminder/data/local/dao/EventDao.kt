@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.example.offlinereminder.data.local.entity.EventEntity
 import com.example.offlinereminder.data.local.relation.EventWithDetails
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
@@ -22,6 +23,12 @@ interface EventDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(events: List<EventEntity>)
+
+    @Upsert
+    suspend fun upsert(event: EventEntity)
+
+    @Upsert
+    suspend fun upsertAll(events: List<EventEntity>)
 
     @Update
     suspend fun update(event: EventEntity)
@@ -105,4 +112,11 @@ interface EventDao {
 
     @Query("SELECT COUNT(*) FROM events WHERE lifecycle_status = 'TRASHED'")
     suspend fun countTrashed(): Int
+
+    @Transaction
+    @Query("SELECT * FROM events ORDER BY start_date ASC, start_time ASC")
+    suspend fun getAllWithDetails(): List<EventWithDetails>
+
+    @Query("DELETE FROM events")
+    suspend fun deleteAll()
 }

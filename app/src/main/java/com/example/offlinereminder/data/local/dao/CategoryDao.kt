@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.example.offlinereminder.data.local.entity.CategoryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -17,6 +18,12 @@ interface CategoryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(categories: List<CategoryEntity>)
+
+    @Upsert
+    suspend fun upsert(category: CategoryEntity)
+
+    @Upsert
+    suspend fun upsertAll(categories: List<CategoryEntity>)
 
     @Update
     suspend fun update(category: CategoryEntity)
@@ -38,4 +45,7 @@ interface CategoryDao {
 
     @Query("SELECT COUNT(*) FROM categories")
     suspend fun count(): Int
+
+    @Query("DELETE FROM categories")
+    suspend fun deleteAll()
 }

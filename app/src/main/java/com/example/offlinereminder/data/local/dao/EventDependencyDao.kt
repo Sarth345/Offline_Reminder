@@ -31,4 +31,10 @@ interface EventDependencyDao {
 
     @Query("SELECT * FROM event_dependencies WHERE target_event_id = :targetEventId")
     fun getDependentsForTargetFlow(targetEventId: String): Flow<List<EventDependencyEntity>>
+
+    @Query("SELECT * FROM event_dependencies")
+    suspend fun getAll(): List<EventDependencyEntity>
+
+    @Query("DELETE FROM event_dependencies")
+    suspend fun deleteAll()
 }

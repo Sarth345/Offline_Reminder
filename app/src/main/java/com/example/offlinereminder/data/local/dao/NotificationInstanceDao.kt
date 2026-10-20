@@ -64,4 +64,7 @@ interface NotificationInstanceDao {
 
     @Query("SELECT COUNT(*) FROM notification_instances WHERE status = 'SCHEDULED'")
     suspend fun countScheduled(): Int
+
+    @Query("DELETE FROM notification_instances")
+    suspend fun deleteAll()
 }

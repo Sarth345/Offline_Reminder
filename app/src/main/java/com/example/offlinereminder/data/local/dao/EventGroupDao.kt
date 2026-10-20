@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.example.offlinereminder.data.local.entity.EventEntity
 import com.example.offlinereminder.data.local.entity.EventGroupCrossRef
 import com.example.offlinereminder.data.local.entity.EventGroupEntity
@@ -18,6 +19,15 @@ interface EventGroupDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(group: EventGroupEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(groups: List<EventGroupEntity>)
+
+    @Upsert
+    suspend fun upsert(group: EventGroupEntity)
+
+    @Upsert
+    suspend fun upsertAll(groups: List<EventGroupEntity>)
 
     @Update
     suspend fun update(group: EventGroupEntity)
@@ -93,4 +103,13 @@ interface EventGroupDao {
 
     @Query("SELECT COUNT(*) FROM event_groups")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM event_groups ORDER BY name ASC")
+    suspend fun getAll(): List<EventGroupEntity>
+
+    @Query("DELETE FROM event_groups")
+    suspend fun deleteAll()
+
+    @Query("DELETE FROM event_group_cross_ref")
+    suspend fun deleteAllCrossRefs()
 }

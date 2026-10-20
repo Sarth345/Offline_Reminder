@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.example.offlinereminder.data.local.entity.EventEntity
 import com.example.offlinereminder.data.local.entity.EventTagCrossRef
 import com.example.offlinereminder.data.local.entity.TagEntity
@@ -16,6 +17,15 @@ interface TagDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(tag: TagEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(tags: List<TagEntity>)
+
+    @Upsert
+    suspend fun upsert(tag: TagEntity)
+
+    @Upsert
+    suspend fun upsertAll(tags: List<TagEntity>)
 
     @Update
     suspend fun update(tag: TagEntity)
@@ -87,4 +97,13 @@ interface TagDao {
 
     @Query("SELECT COUNT(*) FROM tags")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM tags ORDER BY name ASC")
+    suspend fun getAll(): List<TagEntity>
+
+    @Query("DELETE FROM tags")
+    suspend fun deleteAll()
+
+    @Query("DELETE FROM event_tag_cross_ref")
+    suspend fun deleteAllCrossRefs()
 }

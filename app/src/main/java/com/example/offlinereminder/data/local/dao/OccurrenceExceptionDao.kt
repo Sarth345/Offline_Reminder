@@ -56,4 +56,10 @@ interface OccurrenceExceptionDao {
 
     @Query("SELECT COUNT(*) FROM occurrence_exceptions")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM occurrence_exceptions ORDER BY original_start_date_time ASC")
+    suspend fun getAll(): List<OccurrenceExceptionEntity>
+
+    @Query("DELETE FROM occurrence_exceptions")
+    suspend fun deleteAll()
 }

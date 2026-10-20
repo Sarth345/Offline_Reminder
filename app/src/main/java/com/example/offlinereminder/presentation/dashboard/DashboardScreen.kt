@@ -15,9 +15,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -47,6 +49,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToAddEvent: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -56,6 +59,7 @@ fun DashboardScreen(
         onAction = viewModel::onAction,
         onNavigateToDetails = onNavigateToDetails,
         onNavigateToAddEvent = onNavigateToAddEvent,
+        onNavigateToSettings = onNavigateToSettings,
         modifier = modifier
     )
 }
@@ -67,6 +71,7 @@ fun DashboardContent(
     onAction: (DashboardAction) -> Unit,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToAddEvent: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var occurrenceToReschedule by remember { mutableStateOf<EventOccurrence?>(null) }
@@ -109,7 +114,15 @@ fun DashboardContent(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings & Backup"
+                        )
+                    }
+                }
             )
         }
     ) { innerPadding ->

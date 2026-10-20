@@ -31,4 +31,10 @@ interface EventRelationshipDao {
 
     @Query("SELECT * FROM event_relationships WHERE target_event_id = :targetEventId")
     fun getRelationshipsForTargetFlow(targetEventId: String): Flow<List<EventRelationshipEntity>>
+
+    @Query("SELECT * FROM event_relationships")
+    suspend fun getAll(): List<EventRelationshipEntity>
+
+    @Query("DELETE FROM event_relationships")
+    suspend fun deleteAll()
 }
