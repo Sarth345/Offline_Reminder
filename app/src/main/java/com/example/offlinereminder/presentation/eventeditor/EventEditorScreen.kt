@@ -1,5 +1,6 @@
 package com.example.offlinereminder.presentation.eventeditor
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -17,23 +18,35 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -48,20 +61,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.offlinereminder.domain.model.Checklist
 import com.example.offlinereminder.domain.model.ChecklistItem
 import com.example.offlinereminder.domain.model.EventDateTime
 import com.example.offlinereminder.domain.model.NotificationSchedule
 import com.example.offlinereminder.domain.model.Priority
+import com.example.offlinereminder.domain.model.RecurrenceEnd
 import com.example.offlinereminder.domain.model.RecurrenceFrequency
 import com.example.offlinereminder.domain.model.RecurrenceRule
+import com.example.offlinereminder.domain.model.ReminderDeliveryType
 import com.example.offlinereminder.presentation.components.DateTimeFormatters
 import com.example.offlinereminder.presentation.components.ErrorBanner
 import com.example.offlinereminder.presentation.components.LoadingView
+import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
 
@@ -112,6 +130,8 @@ fun EventEditorContent(
     modifier: Modifier = Modifier
 ) {
     var newChecklistText by remember { mutableStateOf("") }
+    var showTemplatesDialog by remember { mutableStateOf(false) }
+    var showAddReminderDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -129,6 +149,14 @@ fun EventEditorContent(
                     }
                 },
                 actions = {
+                    if (uiState.availableTemplates.isNotEmpty() && !uiState.isEditing) {
+                        IconButton(
+                            onClick = { showTemplatesDialog = true },
+                            modifier = Modifier.semantics { contentDescription = "Choose template" }
+                        ) {
+                            Icon(imageVector = Icons.Default.DateRange, contentDescription = "Templates")
+                        }
+                    }
                     Button(
                         onClick = { onAction(EventEditorAction.SaveEvent) },
                         enabled = uiState.canSave,
@@ -182,6 +210,76 @@ fun EventEditorContent(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Sub-event parent banner
+                    if (uiState.parentEventTitle != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Sub-event",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = "Parent: ${uiState.parentEventTitle}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Conflict Guidance Banner
+                    if (uiState.detectedConflicts.isNotEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Schedule Conflict Detected (${uiState.detectedConflicts.size})",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                uiState.detectedConflicts.forEach { conflict ->
+                                    Text(
+                                        text = "• Overlaps with \"${conflict.existingEventTitle}\" (${DateTimeFormatters.formatDateTime(conflict.existingOccurrence.effectiveStartDateTime)})",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // 1. Title Input
                     OutlinedTextField(
                         value = uiState.title,
@@ -207,7 +305,20 @@ fun EventEditorContent(
                         maxLines = 4
                     )
 
-                    // 3. Priority Selection
+                    // 3. Location Input
+                    OutlinedTextField(
+                        value = uiState.locationDisplayName,
+                        onValueChange = { onAction(EventEditorAction.UpdateLocation(it)) },
+                        label = { Text("Location (optional)") },
+                        placeholder = { Text("e.g., Conference Room B, Downtown") },
+                        leadingIcon = {
+                            Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    // 4. Priority Selection
                     EditorSectionCard(title = "Priority") {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -218,13 +329,15 @@ fun EventEditorContent(
                                     selected = uiState.priority == p,
                                     onClick = { onAction(EventEditorAction.UpdatePriority(p)) },
                                     label = { Text(p.name) },
-                                    modifier = Modifier.weight(1f).semantics { contentDescription = "Select priority ${p.name}" }
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .semantics { contentDescription = "Select priority ${p.name}" }
                                 )
                             }
                         }
                     }
 
-                    // 4. Category Selection
+                    // 5. Category Selection
                     EditorSectionCard(title = "Category *") {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -241,7 +354,7 @@ fun EventEditorContent(
                         }
                     }
 
-                    // 5. Event Type Selection (with search)
+                    // 6. Event Type Selection (with search)
                     EditorSectionCard(title = "Event Type *") {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
@@ -283,41 +396,44 @@ fun EventEditorContent(
                         }
                     }
 
-                    // 6. Date & Time Selection
+                    // 7. Date & Time Selection (with Date Mode selector)
                     val currentTemporal = uiState.temporal ?: EventDateTime.DateTime(
                         dateTime = LocalDateTime.now().plusHours(1).withMinute(0).withSecond(0),
                         zoneId = ZoneId.systemDefault()
                     )
 
-                    EditorSectionCard(title = "Date & Time") {
+                    EditorSectionCard(title = "Date & Time Mode") {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            // All Day Switch
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            // Date Mode Selector Chips
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text("All-Day Event", style = MaterialTheme.typography.bodyMedium)
-                                Switch(
-                                    checked = currentTemporal.isAllDay,
-                                    onCheckedChange = { isAllDay ->
-                                        val updated: EventDateTime = if (isAllDay) {
-                                            EventDateTime.DateOnly(startDate = currentTemporal.startDate)
-                                        } else {
-                                            EventDateTime.DateTime(
-                                                dateTime = currentTemporal.startLocalDateTime(),
-                                                zoneId = ZoneId.systemDefault()
-                                            )
-                                        }
-                                        onAction(EventEditorAction.UpdateTemporal(updated))
-                                    },
-                                    modifier = Modifier.semantics { contentDescription = "Toggle all day event" }
+                                FilterChip(
+                                    selected = uiState.dateMode == EventDateMode.DATE_TIME,
+                                    onClick = { onAction(EventEditorAction.SetDateMode(EventDateMode.DATE_TIME)) },
+                                    label = { Text("Date & Time") }
+                                )
+                                FilterChip(
+                                    selected = uiState.dateMode == EventDateMode.DATE_ONLY,
+                                    onClick = { onAction(EventEditorAction.SetDateMode(EventDateMode.DATE_ONLY)) },
+                                    label = { Text("All-Day") }
+                                )
+                                FilterChip(
+                                    selected = uiState.dateMode == EventDateMode.DATE_RANGE,
+                                    onClick = { onAction(EventEditorAction.SetDateMode(EventDateMode.DATE_RANGE)) },
+                                    label = { Text("Date Range") }
+                                )
+                                FilterChip(
+                                    selected = uiState.dateMode == EventDateMode.DATE_RANGE_TIME,
+                                    onClick = { onAction(EventEditorAction.SetDateMode(EventDateMode.DATE_RANGE_TIME)) },
+                                    label = { Text("Date & Time Range") }
                                 )
                             }
 
                             // Current start date/time display
                             Text(
-                                text = "Start: ${DateTimeFormatters.formatDateTime(currentTemporal.startLocalDateTime())}",
+                                text = "Current Bounds: ${DateTimeFormatters.formatEventDateTime(currentTemporal)}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.primary
@@ -356,17 +472,31 @@ fun EventEditorContent(
                                     Text("+1 Week")
                                 }
                             }
+
+                            // Timezone Display / Selector
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Timezone: ${uiState.timeZoneId}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
 
-                    // 7. Recurrence
+                    // 8. Recurrence
                     EditorSectionCard(title = "Repeat") {
                         val currentFrequency = uiState.recurrenceRule?.frequency
+                        val rule = uiState.recurrenceRule
 
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 FilterChip(
                                     selected = currentFrequency == null,
@@ -377,9 +507,17 @@ fun EventEditorContent(
                                     FilterChip(
                                         selected = currentFrequency == freq,
                                         onClick = {
+                                            val newDays = if (freq == RecurrenceFrequency.WEEKLY) {
+                                                rule?.daysOfWeek?.ifEmpty { setOf(LocalDate.now().dayOfWeek) } ?: setOf(LocalDate.now().dayOfWeek)
+                                            } else emptySet()
                                             onAction(
                                                 EventEditorAction.UpdateRecurrence(
-                                                    RecurrenceRule(frequency = freq, interval = 1)
+                                                    RecurrenceRule(
+                                                        frequency = freq,
+                                                        interval = rule?.interval ?: 1,
+                                                        daysOfWeek = newDays,
+                                                        endCondition = rule?.endCondition ?: RecurrenceEnd.Never
+                                                    )
                                                 )
                                             )
                                         },
@@ -387,10 +525,37 @@ fun EventEditorContent(
                                     )
                                 }
                             }
+
+                            // Weekly days of week selector
+                            if (currentFrequency == RecurrenceFrequency.WEEKLY && rule != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Repeat on:", style = MaterialTheme.typography.labelSmall)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    DayOfWeek.entries.forEach { day ->
+                                        val isSelected = rule.daysOfWeek.contains(day)
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = {
+                                                val updatedDays = if (isSelected) {
+                                                    if (rule.daysOfWeek.size > 1) rule.daysOfWeek - day else rule.daysOfWeek
+                                                } else {
+                                                    rule.daysOfWeek + day
+                                                }
+                                                onAction(EventEditorAction.UpdateRecurrence(rule.copy(daysOfWeek = updatedDays)))
+                                            },
+                                            label = { Text(day.name.take(1)) },
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    // 8. Notification Schedules
+                    // 9. Notification Schedules
                     EditorSectionCard(title = "Reminders") {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             uiState.notificationSchedules.forEach { schedule ->
@@ -404,17 +569,30 @@ fun EventEditorContent(
                                             imageVector = Icons.Default.Notifications,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.secondary
+                                            tint = if (schedule.deliveryType == ReminderDeliveryType.ALARM) {
+                                                MaterialTheme.colorScheme.error
+                                            } else {
+                                                MaterialTheme.colorScheme.secondary
+                                            }
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = if (schedule.offsetDuration.isZero) "At time of event" else "${schedule.offsetDuration.toMinutes()}m before",
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
+                                        Column {
+                                            Text(
+                                                text = if (schedule.offsetDuration.isZero) "At time of event" else "${schedule.offsetDuration.toMinutes()}m before",
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                            Text(
+                                                text = "Type: ${schedule.deliveryType.name}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                     IconButton(
                                         onClick = { onAction(EventEditorAction.RemoveNotificationSchedule(schedule.id)) },
-                                        modifier = Modifier.size(36.dp).semantics { contentDescription = "Remove reminder" }
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .semantics { contentDescription = "Remove reminder" }
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
@@ -458,19 +636,23 @@ fun EventEditorContent(
                                     onClick = {
                                         onAction(
                                             EventEditorAction.AddNotificationSchedule(
-                                                NotificationSchedule.beforeStart(Duration.ofMinutes(60))
+                                                NotificationSchedule(
+                                                    offsetDuration = Duration.ZERO,
+                                                    triggerType = com.example.offlinereminder.domain.model.NotificationTriggerType.AT_START,
+                                                    deliveryType = ReminderDeliveryType.ALARM
+                                                )
                                             )
                                         )
                                     },
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("1h before", style = MaterialTheme.typography.labelSmall)
+                                    Text("Alarm", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
                     }
 
-                    // 9. Groups & Tags
+                    // 10. Groups & Tags
                     EditorSectionCard(title = "Groups & Tags") {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (uiState.availableGroups.isNotEmpty()) {
@@ -507,7 +689,7 @@ fun EventEditorContent(
                         }
                     }
 
-                    // 10. Checklist
+                    // 11. Checklist
                     EditorSectionCard(title = "Checklist") {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             val items = uiState.checklist?.items ?: emptyList()
@@ -517,16 +699,23 @@ fun EventEditorContent(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(item.text, style = MaterialTheme.typography.bodyMedium)
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = item.isCompleted,
+                                            onCheckedChange = { onAction(EventEditorAction.ToggleChecklistItem(item.id)) }
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = item.text,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            textDecoration = if (item.isCompleted) TextDecoration.LineThrough else null
+                                        )
+                                    }
                                     IconButton(
-                                        onClick = {
-                                            val updated = items.filter { it.id != item.id }
-                                            onAction(
-                                                EventEditorAction.UpdateChecklist(
-                                                    if (updated.isEmpty()) null else Checklist(title = "Checklist", items = updated)
-                                                )
-                                            )
-                                        },
+                                        onClick = { onAction(EventEditorAction.RemoveChecklistItem(item.id)) },
                                         modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
@@ -553,13 +742,7 @@ fun EventEditorContent(
                                 IconButton(
                                     onClick = {
                                         if (newChecklistText.isNotBlank()) {
-                                            val newItem = ChecklistItem(
-                                                id = UUID.randomUUID().toString(),
-                                                text = newChecklistText.trim(),
-                                                isCompleted = false
-                                            )
-                                            val updated = items + newItem
-                                            onAction(EventEditorAction.UpdateChecklist(Checklist(title = "Checklist", items = updated)))
+                                            onAction(EventEditorAction.AddChecklistItem(newChecklistText.trim()))
                                             newChecklistText = ""
                                         }
                                     },
@@ -571,10 +754,94 @@ fun EventEditorContent(
                         }
                     }
 
+                    // 12. Attachments
+                    if (uiState.attachments.isNotEmpty()) {
+                        EditorSectionCard(title = "Attachments (${uiState.attachments.size})") {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                uiState.attachments.forEach { att ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = att.fileName,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = att.mimeType,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                onAction(EventEditorAction.RemoveAttachment(att.id))
+                                            },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove attachment",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
+    }
+
+    // Template Picker Dialog
+    if (showTemplatesDialog) {
+        AlertDialog(
+            onDismissRequest = { showTemplatesDialog = false },
+            title = { Text("Choose a Template") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    uiState.availableTemplates.forEach { template ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onAction(EventEditorAction.ApplyTemplate(template.id))
+                                    showTemplatesDialog = false
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = template.name,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (template.description.isNotBlank()) {
+                                    Text(
+                                        text = template.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTemplatesDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

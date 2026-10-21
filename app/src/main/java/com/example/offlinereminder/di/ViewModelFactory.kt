@@ -2,6 +2,7 @@ package com.example.offlinereminder.di
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.offlinereminder.presentation.archive.ArchiveViewModel
 import com.example.offlinereminder.presentation.calendar.CalendarViewModel
 import com.example.offlinereminder.presentation.dashboard.DashboardViewModel
 import com.example.offlinereminder.presentation.eventdetail.EventDetailViewModel
@@ -9,8 +10,11 @@ import com.example.offlinereminder.presentation.eventeditor.EventEditorViewModel
 import com.example.offlinereminder.presentation.eventlist.EventListViewModel
 import com.example.offlinereminder.presentation.groups.GroupDetailViewModel
 import com.example.offlinereminder.presentation.groups.GroupsViewModel
+import com.example.offlinereminder.presentation.notificationprofiles.NotificationProfilesViewModel
 import com.example.offlinereminder.presentation.search.SearchViewModel
 import com.example.offlinereminder.presentation.settings.SettingsViewModel
+import com.example.offlinereminder.presentation.templates.TemplatesViewModel
+import com.example.offlinereminder.presentation.trash.TrashViewModel
 import com.example.offlinereminder.presentation.upcoming.UpcomingViewModel
 
 /**
@@ -63,6 +67,23 @@ class ViewModelFactory(
                     skipOccurrenceActionUseCase = appContainer.skipOccurrenceActionUseCase,
                     rescheduleOccurrenceActionUseCase = appContainer.rescheduleOccurrenceActionUseCase,
                     deleteEventUseCase = appContainer.deleteEventUseCase,
+                    trashEventUseCase = appContainer.trashEventUseCase,
+                    restoreTrashedEventUseCase = appContainer.restoreTrashedEventUseCase,
+                    archiveEventUseCase = appContainer.archiveEventUseCase,
+                    restoreArchivedEventUseCase = appContainer.restoreArchivedEventUseCase,
+                    permanentlyDeleteEventUseCase = appContainer.permanentlyDeleteEventUseCase,
+                    duplicateEventUseCase = appContainer.duplicateEventUseCase,
+                    createEventTemplateUseCase = appContainer.createEventTemplateUseCase,
+                    getEventDependenciesUseCase = appContainer.getEventDependenciesUseCase,
+                    getEventDependentsUseCase = appContainer.getEventDependentsUseCase,
+                    addEventDependencyUseCase = appContainer.addEventDependencyUseCase,
+                    removeEventDependencyUseCase = appContainer.removeEventDependencyUseCase,
+                    getEventRelationshipsUseCase = appContainer.getEventRelationshipsUseCase,
+                    addEventRelationshipUseCase = appContainer.addEventRelationshipUseCase,
+                    removeEventRelationshipUseCase = appContainer.removeEventRelationshipUseCase,
+                    detectEventConflictsUseCase = appContainer.detectEventConflictsUseCase,
+                    getNotificationProfilesUseCase = appContainer.getNotificationProfilesUseCase,
+                    getCustomSoundsUseCase = appContainer.getCustomSoundsUseCase,
                     cancelNotificationsForEventUseCase = appContainer.cancelNotificationsForEventUseCase,
                     scheduleNotificationsForEventUseCase = appContainer.scheduleNotificationsForEventUseCase,
                     dispatcherProvider = appContainer.dispatcherProvider
@@ -79,7 +100,13 @@ class ViewModelFactory(
                     getTagsUseCase = appContainer.getTagsUseCase,
                     timeProvider = appContainer.timeProvider,
                     dispatcherProvider = appContainer.dispatcherProvider,
-                    settingsRepository = appContainer.settingsRepository
+                    settingsRepository = appContainer.settingsRepository,
+                    eventRepository = appContainer.eventRepository,
+                    getEventTemplatesUseCase = appContainer.getEventTemplatesUseCase,
+                    getEventTemplateUseCase = appContainer.getEventTemplateUseCase,
+                    getNotificationProfilesUseCase = appContainer.getNotificationProfilesUseCase,
+                    getCustomSoundsUseCase = appContainer.getCustomSoundsUseCase,
+                    detectEventConflictsUseCase = appContainer.detectEventConflictsUseCase
                 ) as T
             }
             modelClass.isAssignableFrom(UpcomingViewModel::class.java) -> {
@@ -156,6 +183,57 @@ class ViewModelFactory(
                 com.example.offlinereminder.presentation.quickadd.QuickAddViewModel(
                     parser = appContainer.quickAddParser,
                     createEventFromQuickAddUseCase = appContainer.createEventFromQuickAddUseCase,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(TemplatesViewModel::class.java) -> {
+                TemplatesViewModel(
+                    getEventTemplatesUseCase = appContainer.getEventTemplatesUseCase,
+                    createEventFromTemplateUseCase = appContainer.createEventFromTemplateUseCase,
+                    deleteEventTemplateUseCase = appContainer.deleteEventTemplateUseCase,
+                    getCategoriesUseCase = appContainer.getCategoriesUseCase,
+                    getEventTypesUseCase = appContainer.getEventTypesUseCase,
+                    timeProvider = appContainer.timeProvider,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(TrashViewModel::class.java) -> {
+                TrashViewModel(
+                    eventRepository = appContainer.eventRepository,
+                    restoreTrashedEventUseCase = appContainer.restoreTrashedEventUseCase,
+                    permanentlyDeleteEventUseCase = appContainer.permanentlyDeleteEventUseCase,
+                    emptyTrashUseCase = appContainer.emptyTrashUseCase,
+                    getCategoriesUseCase = appContainer.getCategoriesUseCase,
+                    getEventTypesUseCase = appContainer.getEventTypesUseCase,
+                    scheduleNotificationsForEventUseCase = appContainer.scheduleNotificationsForEventUseCase,
+                    cancelNotificationsForEventUseCase = appContainer.cancelNotificationsForEventUseCase,
+                    timeProvider = appContainer.timeProvider,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(ArchiveViewModel::class.java) -> {
+                ArchiveViewModel(
+                    eventRepository = appContainer.eventRepository,
+                    restoreArchivedEventUseCase = appContainer.restoreArchivedEventUseCase,
+                    trashEventUseCase = appContainer.trashEventUseCase,
+                    permanentlyDeleteEventUseCase = appContainer.permanentlyDeleteEventUseCase,
+                    getCategoriesUseCase = appContainer.getCategoriesUseCase,
+                    getEventTypesUseCase = appContainer.getEventTypesUseCase,
+                    scheduleNotificationsForEventUseCase = appContainer.scheduleNotificationsForEventUseCase,
+                    cancelNotificationsForEventUseCase = appContainer.cancelNotificationsForEventUseCase,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(NotificationProfilesViewModel::class.java) -> {
+                NotificationProfilesViewModel(
+                    getNotificationProfilesUseCase = appContainer.getNotificationProfilesUseCase,
+                    createNotificationProfileUseCase = appContainer.createNotificationProfileUseCase,
+                    updateNotificationProfileUseCase = appContainer.updateNotificationProfileUseCase,
+                    deleteNotificationProfileUseCase = appContainer.deleteNotificationProfileUseCase,
+                    setDefaultNotificationProfileUseCase = appContainer.setDefaultNotificationProfileUseCase,
+                    getCustomSoundsUseCase = appContainer.getCustomSoundsUseCase,
+                    addCustomSoundUseCase = appContainer.addCustomSoundUseCase,
+                    deleteCustomSoundUseCase = appContainer.deleteCustomSoundUseCase,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }

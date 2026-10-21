@@ -386,8 +386,8 @@ fun OccurrenceCard(
 @Composable
 fun ChipBadge(
     text: String,
-    containerColor: androidx.compose.ui.graphics.Color,
-    textColor: androidx.compose.ui.graphics.Color,
+    containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceVariant,
+    textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
     modifier: Modifier = Modifier
 ) {
     Surface(

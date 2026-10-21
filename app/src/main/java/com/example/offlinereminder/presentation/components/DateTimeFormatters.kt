@@ -1,5 +1,6 @@
 package com.example.offlinereminder.presentation.components
 
+import com.example.offlinereminder.domain.model.EventDateTime
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -16,6 +17,13 @@ object DateTimeFormatters {
     fun formatTime(time: LocalTime): String = time.format(TIME_FORMATTER)
 
     fun formatDateTime(dateTime: LocalDateTime): String = dateTime.format(DATE_TIME_FORMATTER)
+
+    fun formatEventDateTime(temporal: EventDateTime): String = when (temporal) {
+        is EventDateTime.DateOnly -> formatDate(temporal.startDate)
+        is EventDateTime.DateTime -> formatDateTime(temporal.dateTime)
+        is EventDateTime.DateRange -> "${formatDate(temporal.startDate)} – ${formatDate(temporal.endDate)}"
+        is EventDateTime.DateTimeRange -> "${formatDateTime(temporal.startDateTime)} – ${formatDateTime(temporal.endDateTime)}"
+    }
 
     fun formatCountdown(now: LocalDateTime, target: LocalDateTime): String {
         val isPast = now.isAfter(target)

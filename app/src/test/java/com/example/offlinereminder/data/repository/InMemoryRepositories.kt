@@ -89,12 +89,12 @@ class InMemoryEventRepository : EventRepository {
 
     override suspend fun moveToTrash(id: String): Result<Unit> = Result.runCatching {
         val event = events.value[id] ?: return@runCatching
-        saveEvent(event.copy(lifecycleStatus = EventLifecycleStatus.TRASHED))
+        saveEvent(event.copy(lifecycleStatus = EventLifecycleStatus.TRASHED, deletedAt = Instant.now()))
     }
 
     override suspend fun restoreFromTrash(id: String): Result<Unit> = Result.runCatching {
         val event = events.value[id] ?: return@runCatching
-        saveEvent(event.copy(lifecycleStatus = EventLifecycleStatus.ACTIVE))
+        saveEvent(event.copy(lifecycleStatus = EventLifecycleStatus.ACTIVE, deletedAt = null))
     }
 
     override suspend fun setFavorite(id: String, isFavorite: Boolean): Result<Unit> = Result.runCatching {
@@ -417,6 +417,10 @@ class InMemoryOccurrenceExceptionRepository : OccurrenceExceptionRepository {
  */
 class InMemoryNotificationProfileRepository : NotificationProfileRepository {
     val profiles = MutableStateFlow<Map<String, NotificationProfile>>(emptyMap())
+
+    fun clear() {
+        profiles.value = emptyMap()
+    }
 
     override fun getAllProfiles(): Flow<List<NotificationProfile>> =
         profiles.map { it.values.toList() }

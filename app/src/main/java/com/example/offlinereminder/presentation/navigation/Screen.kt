@@ -19,6 +19,7 @@ sealed class Screen(val route: String) {
     data object Archive : Screen("archive")
     data object Trash : Screen("trash")
     data object Templates : Screen("templates")
+    data object NotificationProfiles : Screen("notification_profiles")
     data object AppLock : Screen("app_lock")
 
     data object EventEditor : Screen("event_editor?eventId={eventId}&initialDate={initialDate}&eventTypeId={eventTypeId}") {

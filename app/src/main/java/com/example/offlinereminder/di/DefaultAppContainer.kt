@@ -468,7 +468,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val deleteCustomSoundUseCase: com.example.offlinereminder.domain.usecase.DeleteCustomSoundUseCase by lazy {
-        com.example.offlinereminder.domain.usecase.DeleteCustomSoundUseCase(customSoundRepository)
+        com.example.offlinereminder.domain.usecase.DeleteCustomSoundUseCase(
+            repository = customSoundRepository,
+            profileRepository = notificationProfileRepository,
+            eventRepository = eventRepository
+        )
     }
 
     override val createEventTemplateUseCase: com.example.offlinereminder.domain.usecase.CreateEventTemplateUseCase by lazy {

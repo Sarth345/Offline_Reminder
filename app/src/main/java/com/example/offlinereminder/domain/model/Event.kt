@@ -43,6 +43,8 @@ data class Event(
 
     val isActive: Boolean get() = lifecycleStatus == EventLifecycleStatus.ACTIVE
 
+    val schedules: List<NotificationSchedule> get() = notificationSchedules
+
     /**
      * Creates the execution occurrence instance for a one-time event.
      * Unifies one-time and recurring event lifecycles.

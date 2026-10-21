@@ -61,6 +61,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.offlinereminder.domain.backup.RestoreStrategy
@@ -81,6 +83,10 @@ import java.time.DayOfWeek
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToTemplates: () -> Unit = {},
+    onNavigateToTrash: () -> Unit = {},
+    onNavigateToArchive: () -> Unit = {},
+    onNavigateToNotificationProfiles: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -114,6 +120,10 @@ fun SettingsScreen(
         onNavigateBack = onNavigateBack,
         onExportClick = { exportLauncher.launch("OfflineReminder_Backup.zip") },
         onImportClick = { importLauncher.launch(arrayOf("*/*")) },
+        onNavigateToTemplates = onNavigateToTemplates,
+        onNavigateToTrash = onNavigateToTrash,
+        onNavigateToArchive = onNavigateToArchive,
+        onNavigateToNotificationProfiles = onNavigateToNotificationProfiles,
         modifier = modifier
     )
 }
@@ -126,6 +136,10 @@ fun SettingsContent(
     onNavigateBack: () -> Unit,
     onExportClick: () -> Unit = {},
     onImportClick: () -> Unit = {},
+    onNavigateToTemplates: () -> Unit = {},
+    onNavigateToTrash: () -> Unit = {},
+    onNavigateToArchive: () -> Unit = {},
+    onNavigateToNotificationProfiles: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showAddCategoryDialog by remember { mutableStateOf(false) }
@@ -228,7 +242,56 @@ fun SettingsContent(
                 onDeleteEventType = { onAction(SettingsAction.DeleteEventType(it)) }
             )
 
-            // 7. Backup & Restore Section
+            // 7. Organization & Management Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Organization & Maintenance",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onNavigateToTemplates,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Open templates" }
+                        ) {
+                            Text("Templates")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToNotificationProfiles,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Open notification profiles" }
+                        ) {
+                            Text("Profiles")
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onNavigateToArchive,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Open archive" }
+                        ) {
+                            Text("Archive")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToTrash,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Open trash" }
+                        ) {
+                            Text("Trash")
+                        }
+                    }
+                }
+            }
+
+            // 8. Backup & Restore Section
             BackupRestoreSection(
                 selectedStrategy = uiState.selectedStrategy,
                 isLoading = uiState.isLoading,

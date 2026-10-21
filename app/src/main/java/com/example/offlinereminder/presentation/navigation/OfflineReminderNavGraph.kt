@@ -10,6 +10,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.offlinereminder.di.ViewModelFactory
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
+import com.example.offlinereminder.presentation.archive.ArchiveScreen
+import com.example.offlinereminder.presentation.archive.ArchiveViewModel
 import com.example.offlinereminder.presentation.calendar.CalendarScreen
 import com.example.offlinereminder.presentation.calendar.CalendarViewModel
 import com.example.offlinereminder.presentation.dashboard.DashboardScreen
@@ -25,10 +27,16 @@ import com.example.offlinereminder.presentation.groups.GroupDetailScreen
 import com.example.offlinereminder.presentation.groups.GroupDetailViewModel
 import com.example.offlinereminder.presentation.groups.GroupsScreen
 import com.example.offlinereminder.presentation.groups.GroupsViewModel
+import com.example.offlinereminder.presentation.notificationprofiles.NotificationProfilesScreen
+import com.example.offlinereminder.presentation.notificationprofiles.NotificationProfilesViewModel
 import com.example.offlinereminder.presentation.search.SearchScreen
 import com.example.offlinereminder.presentation.search.SearchViewModel
 import com.example.offlinereminder.presentation.settings.SettingsScreen
 import com.example.offlinereminder.presentation.settings.SettingsViewModel
+import com.example.offlinereminder.presentation.templates.TemplatesScreen
+import com.example.offlinereminder.presentation.templates.TemplatesViewModel
+import com.example.offlinereminder.presentation.trash.TrashScreen
+import com.example.offlinereminder.presentation.trash.TrashViewModel
 import com.example.offlinereminder.presentation.upcoming.UpcomingScreen
 import com.example.offlinereminder.presentation.upcoming.UpcomingViewModel
 
@@ -171,6 +179,12 @@ fun OfflineReminderNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToEdit = { editId ->
                     navController.navigate(Screen.EventEditor.createRoute(eventId = editId))
+                },
+                onNavigateToEvent = { targetId ->
+                    navController.navigate(Screen.EventDetails.createRoute(targetId))
+                },
+                onNavigateToAddSubEvent = { parentId ->
+                    navController.navigate(Screen.EventEditor.createRoute())
                 }
             )
         }
@@ -230,6 +244,52 @@ fun OfflineReminderNavGraph(
             val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
             SettingsScreen(
                 viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToTemplates = { navController.navigate(Screen.Templates.route) },
+                onNavigateToTrash = { navController.navigate(Screen.Trash.route) },
+                onNavigateToArchive = { navController.navigate(Screen.Archive.route) },
+                onNavigateToNotificationProfiles = { navController.navigate(Screen.NotificationProfiles.route) }
+            )
+        }
+
+        // 10. Templates Management
+        composable(route = Screen.Templates.route) {
+            val templatesViewModel: TemplatesViewModel = viewModel(factory = viewModelFactory)
+            TemplatesScreen(
+                viewModel = templatesViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEvent = { eventId ->
+                    navController.navigate(Screen.EventDetails.createRoute(eventId))
+                }
+            )
+        }
+
+        // 11. Trash Management
+        composable(route = Screen.Trash.route) {
+            val trashViewModel: TrashViewModel = viewModel(factory = viewModelFactory)
+            TrashScreen(
+                viewModel = trashViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 12. Archive Management
+        composable(route = Screen.Archive.route) {
+            val archiveViewModel: ArchiveViewModel = viewModel(factory = viewModelFactory)
+            ArchiveScreen(
+                viewModel = archiveViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEvent = { eventId ->
+                    navController.navigate(Screen.EventDetails.createRoute(eventId))
+                }
+            )
+        }
+
+        // 13. Notification Profiles & Sound Management
+        composable(route = Screen.NotificationProfiles.route) {
+            val profilesViewModel: NotificationProfilesViewModel = viewModel(factory = viewModelFactory)
+            NotificationProfilesScreen(
+                viewModel = profilesViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

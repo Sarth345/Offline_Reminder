@@ -4,7 +4,10 @@ import com.example.offlinereminder.core.result.Result
 import com.example.offlinereminder.core.time.TimeProvider
 import com.example.offlinereminder.domain.model.CustomSoundMetadata
 import com.example.offlinereminder.domain.repository.CustomSoundRepository
+import com.example.offlinereminder.domain.repository.EventRepository
+import com.example.offlinereminder.domain.repository.NotificationProfileRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.util.UUID
 
 class AddCustomSoundUseCase(
@@ -83,11 +86,29 @@ class GetCustomSoundUseCase(
 }
 
 class DeleteCustomSoundUseCase(
-    private val repository: CustomSoundRepository
+    private val repository: CustomSoundRepository,
+    private val profileRepository: NotificationProfileRepository? = null,
+    private val eventRepository: EventRepository? = null
 ) {
     suspend operator fun invoke(id: String): Result<Unit> {
         if (id.isBlank()) {
             return Result.Failure(IllegalArgumentException("Sound id cannot be blank"))
+        }
+        if (profileRepository != null) {
+            val profiles = profileRepository.getAllProfiles().first()
+            val referencingProfile = profiles.find { it.sound.customSoundId == id }
+            if (referencingProfile != null) {
+                return Result.Failure(IllegalStateException("Cannot delete sound: referenced by profile '${referencingProfile.name}'"))
+            }
+        }
+        if (eventRepository != null) {
+            val events = eventRepository.getAllActiveEvents().first()
+            val referencingEvent = events.find { event ->
+                event.notificationSchedules.any { schedule -> schedule.sound.customSoundId == id }
+            }
+            if (referencingEvent != null) {
+                return Result.Failure(IllegalStateException("Cannot delete sound: referenced by event '${referencingEvent.title}'"))
+            }
         }
         return repository.deleteSound(id)
     }

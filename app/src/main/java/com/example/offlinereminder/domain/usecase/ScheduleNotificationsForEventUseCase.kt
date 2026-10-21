@@ -35,8 +35,8 @@ class ScheduleNotificationsForEventUseCase(
         horizonDays: Long = NotificationConstants.DEFAULT_HORIZON_DAYS
     ): Result<Int> = Result.runCatching {
         val effectiveQuietHours = quietHours ?: settingsRepository?.getSettings()?.quietHours
-        // If event is trashed or has no schedules, reconcile/cancel all existing
-        if (event.isTrashed || event.notificationSchedules.isEmpty()) {
+        // If event is trashed, archived, or has no schedules, reconcile/cancel all existing
+        if (event.isTrashed || event.isArchived || event.notificationSchedules.isEmpty()) {
             val existing = notificationRepository.getInstancesForEvent(event.id)
             for (inst in existing) {
                 if (inst.isPending) {
