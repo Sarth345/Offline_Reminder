@@ -55,7 +55,7 @@ class AlarmPlaybackService : Service() {
         super.onCreate()
         ringtonePlayer = AlarmRingtonePlayer(this)
         poster = NotificationPoster(this)
-        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        vibrator = getSystemService(Vibrator::class.java)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

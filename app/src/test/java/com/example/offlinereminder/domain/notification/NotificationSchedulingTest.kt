@@ -478,7 +478,11 @@ class InMemoryNotificationRepository : NotificationRepository {
         instances.values.filter { it.eventId == eventId }
 
     override suspend fun getAllActiveScheduled(): List<NotificationInstance> =
-        instances.values.filter { it.status == NotificationInstanceStatus.SCHEDULED || it.status == NotificationInstanceStatus.SNOOZED }
+        instances.values.filter {
+            it.status == NotificationInstanceStatus.SCHEDULED ||
+            it.status == NotificationInstanceStatus.SNOOZED ||
+            it.status == NotificationInstanceStatus.RINGING
+        }
 
     override suspend fun saveInstance(instance: NotificationInstance): Result<Unit> = Result.runCatching {
         instances[instance.id] = instance

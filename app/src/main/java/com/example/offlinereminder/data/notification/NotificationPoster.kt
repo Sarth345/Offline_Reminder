@@ -46,7 +46,7 @@ class NotificationPoster(
                 "Event Reminders",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Primary alerts for offline event reminders"
+                description = "Primary alerts for Planerize event reminders"
                 enableVibration(true)
             }
 

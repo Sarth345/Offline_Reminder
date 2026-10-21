@@ -527,7 +527,7 @@ fun EventEditorContent(
                             }
 
                             // Weekly days of week selector
-                            if (currentFrequency == RecurrenceFrequency.WEEKLY && rule != null) {
+                            if (currentFrequency == RecurrenceFrequency.WEEKLY) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text("Repeat on:", style = MaterialTheme.typography.labelSmall)
                                 Row(

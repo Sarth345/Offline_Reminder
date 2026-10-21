@@ -118,7 +118,7 @@ fun SettingsScreen(
         uiState = uiState,
         onAction = viewModel::onAction,
         onNavigateBack = onNavigateBack,
-        onExportClick = { exportLauncher.launch("OfflineReminder_Backup.zip") },
+        onExportClick = { exportLauncher.launch("Planerize_Backup.zip") },
         onImportClick = { importLauncher.launch(arrayOf("*/*")) },
         onNavigateToTemplates = onNavigateToTemplates,
         onNavigateToTrash = onNavigateToTrash,
@@ -322,6 +322,9 @@ fun SettingsContent(
 
             // 9. Offline Privacy Notice
             PrivacyNoticeCard()
+
+            // 10. About Planerize
+            AboutPlanerizeCard()
         }
     }
 
@@ -1071,6 +1074,42 @@ private fun PrivacyNoticeCard() {
                 text = "Offline Security: Backups and preferences are stored strictly on your local device. No data is ever transmitted across the internet.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutPlanerizeCard() {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Planerize",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Plan Your Time. Organize Your Life.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Version 1.0.0 • 100% Offline & Private",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
             )
         }
     }

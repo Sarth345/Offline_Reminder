@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">Offline Reminder</string>
+    <string name="app_name">Planerize</string>
+    <string name="app_tagline">Plan Your Time. Organize Your Life.</string>
 </resources>
