@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.offlinereminder.core.dispatcher.DefaultDispatcherProvider
 import com.example.offlinereminder.core.dispatcher.DispatcherProvider
 import com.example.offlinereminder.core.result.Result
+import com.example.offlinereminder.core.time.SystemTimeProvider
+import com.example.offlinereminder.core.time.TimeProvider
 import com.example.offlinereminder.domain.model.EventFilterParams
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
+import com.example.offlinereminder.domain.model.resolveEventDisplayStatus
 import com.example.offlinereminder.domain.repository.EventRepository
+import com.example.offlinereminder.domain.repository.OccurrenceExceptionRepository
 import com.example.offlinereminder.domain.usecase.GetCategoriesUseCase
 import com.example.offlinereminder.domain.usecase.GetEventGroupsUseCase
 import com.example.offlinereminder.domain.usecase.GetEventTypesUseCase
@@ -34,6 +38,8 @@ class SearchViewModel(
     private val getEventGroupsUseCase: GetEventGroupsUseCase,
     private val getTagsUseCase: GetTagsUseCase,
     private val eventRepository: EventRepository,
+    private val occurrenceExceptionRepository: OccurrenceExceptionRepository? = null,
+    private val timeProvider: TimeProvider = SystemTimeProvider(),
     private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider()
 ) : ViewModel() {
 
@@ -71,7 +77,14 @@ class SearchViewModel(
         viewModelScope.launch(dispatcherProvider.main) {
             currentParams.flatMapLatest { params ->
                 _uiState.update { it.copy(isLoading = true, filterParams = params, errorMessage = null) }
-                searchEventsUseCase(params)
+                val exceptionsFlow = occurrenceExceptionRepository?.getAllExceptionsFlow()
+                    ?: kotlinx.coroutines.flow.flowOf(emptyList())
+                combine(
+                    searchEventsUseCase(params),
+                    exceptionsFlow
+                ) { events, exceptions ->
+                    events to exceptions
+                }
             }.catch { error ->
                 _uiState.update {
                     it.copy(
@@ -79,11 +92,16 @@ class SearchViewModel(
                         errorMessage = error.message ?: "Failed to execute search"
                     )
                 }
-            }.collect { events ->
+            }.collect { (events, exceptions) ->
+                val nowLdt = timeProvider.nowLocalDateTime()
+                val statusMap = events.associate { event ->
+                    event.id to resolveEventDisplayStatus(event, exceptions, nowLdt)
+                }
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         results = events,
+                        eventStatusMap = statusMap,
                         errorMessage = null
                     )
                 }

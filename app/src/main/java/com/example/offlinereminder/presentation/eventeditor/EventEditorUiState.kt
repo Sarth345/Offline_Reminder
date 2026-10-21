@@ -68,8 +68,13 @@ data class EventEditorUiState(
 ) {
     val canSave: Boolean
         get() = title.isNotBlank() &&
-            categoryId.isNotBlank() &&
-            eventTypeId.isNotBlank() &&
             temporal != null &&
             !isSaving
+
+    val missingFieldExplanation: String?
+        get() = when {
+            title.isBlank() -> "Title is required"
+            temporal == null -> "Date is required"
+            else -> null
+        }
 }

@@ -51,6 +51,7 @@ sealed interface EventDetailAction {
         val newStartDateTime: LocalDateTime,
         val newEndDateTime: LocalDateTime? = null
     ) : EventDetailAction
+    data class UndoOccurrenceAction(val occurrenceId: String) : EventDetailAction
 
     data object ClearDuplicatedEventId : EventDetailAction
     data object ClearMessage : EventDetailAction

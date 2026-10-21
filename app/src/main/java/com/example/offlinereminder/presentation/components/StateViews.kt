@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.offlinereminder.domain.model.EventDisplayStatus
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
 import com.example.offlinereminder.domain.model.Priority
 import com.example.offlinereminder.ui.theme.PriorityColors
@@ -190,13 +191,17 @@ fun PriorityBadge(
 
 @Composable
 fun StatusBadge(
-    status: EventLifecycleStatus,
+    status: EventDisplayStatus,
     modifier: Modifier = Modifier
 ) {
     val (backgroundColor, textColor) = when (status) {
-        EventLifecycleStatus.ACTIVE -> StatusColors.Active.copy(alpha = 0.15f) to StatusColors.Active
-        EventLifecycleStatus.ARCHIVED -> StatusColors.Archived.copy(alpha = 0.15f) to StatusColors.Archived
-        EventLifecycleStatus.TRASHED -> StatusColors.Trashed.copy(alpha = 0.15f) to StatusColors.Trashed
+        EventDisplayStatus.OVERDUE -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+        EventDisplayStatus.COMPLETED -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        EventDisplayStatus.ACTIVE -> StatusColors.Active.copy(alpha = 0.15f) to StatusColors.Active
+        EventDisplayStatus.SKIPPED -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+        EventDisplayStatus.RESCHEDULED -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        EventDisplayStatus.ARCHIVED -> StatusColors.Archived.copy(alpha = 0.15f) to StatusColors.Archived
+        EventDisplayStatus.TRASHED -> StatusColors.Trashed.copy(alpha = 0.15f) to StatusColors.Trashed
     }
 
     Box(
@@ -209,8 +214,21 @@ fun StatusBadge(
         Text(
             text = status.name,
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Bold,
             color = textColor
         )
     }
+}
+
+@Composable
+fun StatusBadge(
+    status: EventLifecycleStatus,
+    modifier: Modifier = Modifier
+) {
+    val displayStatus = when (status) {
+        EventLifecycleStatus.ACTIVE -> EventDisplayStatus.ACTIVE
+        EventLifecycleStatus.ARCHIVED -> EventDisplayStatus.ARCHIVED
+        EventLifecycleStatus.TRASHED -> EventDisplayStatus.TRASHED
+    }
+    StatusBadge(status = displayStatus, modifier = modifier)
 }

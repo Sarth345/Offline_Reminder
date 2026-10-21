@@ -46,9 +46,11 @@ class ViewModelFactory(
                     getEventGroupsUseCase = appContainer.getEventGroupsUseCase,
                     getTagsUseCase = appContainer.getTagsUseCase,
                     eventRepository = appContainer.eventRepository,
+                    occurrenceExceptionRepository = appContainer.occurrenceExceptionRepository,
                     deleteEventUseCase = appContainer.deleteEventUseCase,
                     cancelNotificationsForEventUseCase = appContainer.cancelNotificationsForEventUseCase,
                     scheduleNotificationsForEventUseCase = appContainer.scheduleNotificationsForEventUseCase,
+                    timeProvider = appContainer.timeProvider,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }
@@ -160,6 +162,8 @@ class ViewModelFactory(
                     getEventGroupsUseCase = appContainer.getEventGroupsUseCase,
                     getTagsUseCase = appContainer.getTagsUseCase,
                     eventRepository = appContainer.eventRepository,
+                    occurrenceExceptionRepository = appContainer.occurrenceExceptionRepository,
+                    timeProvider = appContainer.timeProvider,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }

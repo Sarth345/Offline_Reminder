@@ -2,6 +2,8 @@ package com.example.offlinereminder.presentation.main
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -90,6 +92,7 @@ fun MainScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (isTopLevelDestination) {
                 NavigationBar {
@@ -163,7 +166,9 @@ fun MainScreen(
         OfflineReminderNavGraph(
             navController = navController,
             viewModelFactory = viewModelFactory,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .padding(bottom = innerPadding.calculateBottomPadding())
+                .consumeWindowInsets(innerPadding)
         )
     }
 }

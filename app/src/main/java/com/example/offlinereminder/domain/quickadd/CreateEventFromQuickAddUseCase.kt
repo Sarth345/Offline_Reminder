@@ -68,9 +68,27 @@ class CreateEventFromQuickAddUseCase(
             }
         }
 
-        // 2. Resolve EventType
+        // 2. Resolve EventType (ensuring referential integrity and valid parent row)
         val eventTypes = runCatching { eventTypeRepository.getAllEventTypes().first() }.getOrDefault(emptyList())
-        val eventTypeId = eventTypes.firstOrNull()?.id ?: "type_reminder"
+        val eventTypeId = if (eventTypes.isNotEmpty()) {
+            val titleLower = draft.title.lowercase()
+            val matchedByNameOrKey = eventTypes.firstOrNull { t ->
+                titleLower.contains(t.name.lowercase()) || titleLower.contains(t.key.lowercase())
+            }
+            val matchedByCat = eventTypes.firstOrNull { it.categoryId == categoryId }
+            (matchedByNameOrKey ?: matchedByCat ?: eventTypes.first()).id
+        } else {
+            // No event types exist yet in database — create and persist a canonical parent row first
+            val defaultType = com.example.offlinereminder.domain.model.EventType(
+                id = UUID.randomUUID().toString(),
+                name = "General",
+                key = "general_reminder",
+                categoryId = categoryId,
+                createdAt = timeProvider.nowInstant()
+            )
+            eventTypeRepository.saveEventType(defaultType)
+            defaultType.id
+        }
 
         // 3. Resolve Groups
         val groupIds = mutableSetOf<String>()

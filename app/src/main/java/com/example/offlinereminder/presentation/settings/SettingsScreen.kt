@@ -6,6 +6,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -508,9 +510,10 @@ fun AppearanceSection(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
@@ -601,9 +604,10 @@ fun DateTimeSection(
 
             // Date Format Preference
             Text("Date Format", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 DateFormatPreference.entries.forEach { fmt ->
                     FilterChip(
@@ -652,18 +656,37 @@ fun EventDefaultsSection(
                 fontWeight = FontWeight.Bold
             )
 
-            // Default Priority
+            // Default Priority: 2x2 grid prevents awkward vertical text wrapping on compact screens
             Text("Default Priority", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Priority.entries.forEach { p ->
-                    FilterChip(
-                        selected = defaultPriority == p,
-                        onClick = { onUpdatePriority(p) },
-                        label = { Text(p.name) }
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(Priority.LOW, Priority.NORMAL).forEach { p ->
+                        FilterChip(
+                            selected = defaultPriority == p,
+                            onClick = { onUpdatePriority(p) },
+                            label = { Text(p.name, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(Priority.HIGH, Priority.CRITICAL).forEach { p ->
+                        FilterChip(
+                            selected = defaultPriority == p,
+                            onClick = { onUpdatePriority(p) },
+                            label = { Text(p.name, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
@@ -671,15 +694,16 @@ fun EventDefaultsSection(
 
             // Default Duration
             Text("Default Event Duration", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(15, 30, 60, 120).forEach { mins ->
                     FilterChip(
                         selected = defaultDurationMinutes == mins,
                         onClick = { onUpdateDuration(mins) },
-                        label = { Text("${mins}m") }
+                        label = { Text("${mins}m", maxLines = 1) }
                     )
                 }
             }
@@ -688,15 +712,16 @@ fun EventDefaultsSection(
 
             // Default Snooze
             Text("Default Snooze Duration", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(5, 10, 15, 30).forEach { mins ->
                     FilterChip(
                         selected = defaultSnoozeMinutes == mins,
                         onClick = { onUpdateSnooze(mins) },
-                        label = { Text("${mins}m") }
+                        label = { Text("${mins}m", maxLines = 1) }
                     )
                 }
             }
@@ -780,9 +805,10 @@ fun NotificationsSection(
 
             if (quietHours.enabled) {
                 Text("Quiet Hours Policy", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     QuietHoursPolicy.entries.forEach { policy ->
                         FilterChip(

@@ -14,6 +14,8 @@ import com.example.offlinereminder.domain.model.DependencyType
 import com.example.offlinereminder.domain.model.Event
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
 import com.example.offlinereminder.domain.model.EventOccurrence
+import com.example.offlinereminder.domain.model.OccurrenceStatus
+import com.example.offlinereminder.domain.model.resolveEventDisplayStatus
 import com.example.offlinereminder.domain.model.EventTemplate
 import com.example.offlinereminder.domain.model.NotificationSchedule
 import com.example.offlinereminder.domain.model.RelationshipType
@@ -131,6 +133,7 @@ class EventDetailViewModel(
             is EventDetailAction.CompleteOccurrence -> completeOccurrence(action.occurrence, action.actualExecutionDateTime)
             is EventDetailAction.SkipOccurrence -> skipOccurrence(action.occurrence)
             is EventDetailAction.RescheduleOccurrence -> rescheduleOccurrence(action.occurrence, action.newStartDateTime, action.newEndDateTime)
+            is EventDetailAction.UndoOccurrenceAction -> undoOccurrenceAction(action.occurrenceId)
             is EventDetailAction.ClearDuplicatedEventId -> _uiState.update { it.copy(duplicatedEventId = null) }
             is EventDetailAction.ClearMessage -> _uiState.update { it.copy(actionMessage = null) }
             is EventDetailAction.ClearError -> _uiState.update { it.copy(errorMessage = null) }
@@ -141,23 +144,26 @@ class EventDetailViewModel(
         currentEventId = eventId
         viewModelScope.launch(dispatcherProvider.main) {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            getEventByIdUseCase(eventId)
-                .catch { error ->
-                    _uiState.update {
-                        it.copy(isLoading = false, errorMessage = error.message ?: "Failed to load event")
-                    }
+            kotlinx.coroutines.flow.combine(
+                getEventByIdUseCase(eventId),
+                occurrenceExceptionRepository.getExceptionsForEvent(eventId)
+            ) { event, exceptions ->
+                event to exceptions
+            }.catch { error ->
+                _uiState.update {
+                    it.copy(isLoading = false, errorMessage = error.message ?: "Failed to load event")
                 }
-                .collect { event ->
-                    if (event == null) {
-                        _uiState.update { it.copy(isLoading = false, event = null, errorMessage = "Event not found") }
-                        return@collect
-                    }
-                    populateEventDetails(event)
+            }.collect { (event, exceptions) ->
+                if (event == null) {
+                    _uiState.update { it.copy(isLoading = false, event = null, errorMessage = "Event not found") }
+                    return@collect
                 }
+                populateEventDetails(event, exceptions)
+            }
         }
     }
 
-    private suspend fun populateEventDetails(event: Event) {
+    private suspend fun populateEventDetails(event: Event, exceptions: List<com.example.offlinereminder.domain.model.OccurrenceException> = emptyList()) {
         val category = getCategoriesUseCase.getOnce(event.categoryId)
         val eventType = getEventTypesUseCase.getOnce(event.eventTypeId)
         val allGroups = getEventGroupsUseCase().firstOrNull() ?: emptyList()
@@ -207,22 +213,57 @@ class EventDetailViewModel(
             eventRepository.getAllActiveEvents().first().filter { it.id != event.id }
         }.getOrDefault(emptyList())
 
-        // Project next occurrences if active or archived
+        // Project occurrences within bounded horizon (including past lookback for overdue/completed)
+        val nowLdt = timeProvider.nowLocalDateTime()
+        val horizonStart = if (event.recurrenceRule != null) nowLdt.minusDays(14) else event.temporal.startLocalDateTime().minusDays(1)
+        val horizonEnd = nowLdt.plusDays(30)
+
         val projectedOccurrences = if (!event.isTrashed) {
-            val nowLdt = timeProvider.nowLocalDateTime()
-            val horizonEnd = nowLdt.plusDays(30)
-            val exceptions = occurrenceExceptionRepository.getExceptionsInRange(nowLdt.minusDays(1), horizonEnd)
-                .filter { it.eventId == event.id }
+            val eventExceptions = exceptions.ifEmpty {
+                occurrenceExceptionRepository.getExceptionsInRange(horizonStart, horizonEnd)
+                    .filter { it.eventId == event.id }
+            }
 
             recurrenceEngine.projectOccurrences(
                 event = event,
-                from = nowLdt,
+                from = horizonStart,
                 to = horizonEnd,
-                exceptions = exceptions,
+                exceptions = eventExceptions,
                 evaluateOverdue = true,
                 timeProvider = timeProvider
             )
         } else emptyList()
+
+        val primaryOcc = if (event.recurrenceRule == null) {
+            projectedOccurrences.firstOrNull() ?: event.createInitialOccurrence().let { nominal ->
+                val exc = exceptions.find { it.occurrenceId == nominal.occurrenceId }
+                if (exc != null) {
+                    nominal.copy(
+                        status = exc.status,
+                        completedAt = exc.completedAt,
+                        rescheduledStartDateTime = exc.rescheduledStartDateTime,
+                        rescheduledEndDateTime = exc.rescheduledEndDateTime,
+                        rescheduledZoneId = exc.rescheduledZoneId,
+                        actualExecutionDateTime = exc.actualExecutionDateTime
+                    )
+                } else if (nominal.effectiveStartDateTime.isBefore(nowLdt)) {
+                    nominal.copy(status = OccurrenceStatus.OVERDUE)
+                } else {
+                    nominal
+                }
+            }
+        } else {
+            projectedOccurrences.find { it.status == OccurrenceStatus.OVERDUE }
+                ?: projectedOccurrences.find { it.effectiveStartDateTime.toLocalDate() == nowLdt.toLocalDate() }
+                ?: projectedOccurrences.find { it.status == OccurrenceStatus.PENDING }
+                ?: projectedOccurrences.firstOrNull()
+        }
+
+        val displayStatus = resolveEventDisplayStatus(
+            event = event,
+            occurrence = primaryOcc,
+            nowLdt = nowLdt
+        )
 
         _uiState.update {
             it.copy(
@@ -233,6 +274,8 @@ class EventDetailViewModel(
                 groups = eventGroups,
                 tags = eventTags,
                 occurrences = projectedOccurrences,
+                primaryOccurrence = primaryOcc,
+                displayStatus = displayStatus,
                 parentEvent = parent,
                 subEvents = subEvents,
                 dependencies = deps,
@@ -248,6 +291,15 @@ class EventDetailViewModel(
                 isFavorite = event.isFavorite,
                 errorMessage = null
             )
+        }
+    }
+
+    private fun undoOccurrenceAction(occurrenceId: String) {
+        viewModelScope.launch(dispatcherProvider.io) {
+            val result = occurrenceExceptionRepository.deleteByOccurrenceId(occurrenceId)
+            if (result is Result.Failure) {
+                _uiState.update { it.copy(errorMessage = result.error.message ?: "Failed to undo occurrence action") }
+            }
         }
     }
 

@@ -94,6 +94,7 @@ class SettingsViewModelTest {
                 override fun getExceptionByOccurrenceIdFlow(occurrenceId: String): Flow<OccurrenceException?> = flowOf(null)
                 override suspend fun getExceptionsInRange(startLdt: java.time.LocalDateTime, endLdt: java.time.LocalDateTime): List<OccurrenceException> = emptyList()
                 override suspend fun getAllExceptions(): List<OccurrenceException> = emptyList()
+                override fun getAllExceptionsFlow(): Flow<List<OccurrenceException>> = flowOf(emptyList())
                 override suspend fun saveException(exception: OccurrenceException): Result<Unit> = Result.Success(Unit)
                 override suspend fun deleteException(id: String): Result<Unit> = Result.Success(Unit)
                 override suspend fun deleteByOccurrenceId(occurrenceId: String): Result<Unit> = Result.Success(Unit)

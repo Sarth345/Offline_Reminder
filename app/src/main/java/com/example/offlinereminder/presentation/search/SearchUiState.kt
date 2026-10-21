@@ -2,6 +2,7 @@ package com.example.offlinereminder.presentation.search
 
 import com.example.offlinereminder.domain.model.Category
 import com.example.offlinereminder.domain.model.Event
+import com.example.offlinereminder.domain.model.EventDisplayStatus
 import com.example.offlinereminder.domain.model.EventFilterParams
 import com.example.offlinereminder.domain.model.EventGroup
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
@@ -16,6 +17,7 @@ import java.time.LocalDate
 data class SearchUiState(
     val filterParams: EventFilterParams = EventFilterParams(),
     val results: List<Event> = emptyList(),
+    val eventStatusMap: Map<String, EventDisplayStatus> = emptyMap(),
     val isLoading: Boolean = false,
     val isFilterSheetVisible: Boolean = false,
     val availableCategories: List<Category> = emptyList(),

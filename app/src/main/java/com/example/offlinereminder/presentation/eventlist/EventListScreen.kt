@@ -152,6 +152,7 @@ fun EventListContent(
 
                             EventCard(
                                 event = event,
+                                displayStatus = uiState.eventStatusMap[event.id] ?: com.example.offlinereminder.domain.model.EventDisplayStatus.ACTIVE,
                                 categoryName = categoryName,
                                 eventTypeName = eventTypeName,
                                 groupNames = groupNames,

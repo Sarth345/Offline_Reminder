@@ -396,6 +396,9 @@ class InMemoryOccurrenceExceptionRepository : OccurrenceExceptionRepository {
     override suspend fun getAllExceptions(): List<OccurrenceException> =
         exceptions.value.values.toList()
 
+    override fun getAllExceptionsFlow(): Flow<List<OccurrenceException>> =
+        exceptions.map { it.values.toList() }
+
     override suspend fun saveException(exception: OccurrenceException): Result<Unit> = Result.runCatching {
         val current = exceptions.value.toMutableMap()
         current[exception.id] = exception

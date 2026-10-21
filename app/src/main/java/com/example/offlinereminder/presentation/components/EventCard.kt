@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,8 +41,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.offlinereminder.domain.model.Event
+import com.example.offlinereminder.domain.model.EventDisplayStatus
 import com.example.offlinereminder.domain.model.EventOccurrenceWithEvent
 import com.example.offlinereminder.domain.model.OccurrenceStatus
+import com.example.offlinereminder.domain.model.resolveEventDisplayStatus
 import java.time.ZoneId
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -48,6 +52,7 @@ import java.time.ZoneId
 fun EventCard(
     event: Event,
     modifier: Modifier = Modifier,
+    displayStatus: EventDisplayStatus = EventDisplayStatus.ACTIVE,
     categoryName: String? = null,
     eventTypeName: String? = null,
     groupNames: List<String> = emptyList(),
@@ -55,16 +60,23 @@ fun EventCard(
     onClick: () -> Unit,
     onFavoriteToggle: (() -> Unit)? = null
 ) {
+    val isOverdue = displayStatus == EventDisplayStatus.OVERDUE
+    val isCompleted = displayStatus == EventDisplayStatus.COMPLETED
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .semantics {
-                contentDescription = "Event: ${event.title}, Priority: ${event.priority.name}, Status: ${event.lifecycleStatus.name}"
+                contentDescription = "Event: ${event.title}, Priority: ${event.priority.name}, Status: ${displayStatus.name}"
             },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = if (isOverdue) {
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            }
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -83,7 +95,8 @@ fun EventCard(
                     text = event.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (isCompleted) TextDecoration.LineThrough else null,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -116,7 +129,7 @@ fun EventCard(
                     imageVector = Icons.Default.DateRange,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 val timeStr = if (event.temporal.isAllDay) {
@@ -127,7 +140,7 @@ fun EventCard(
                 Text(
                     text = timeStr,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 if (event.notificationSchedules.isNotEmpty()) {
@@ -148,7 +161,7 @@ fun EventCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 PriorityBadge(priority = event.priority)
-                StatusBadge(status = event.lifecycleStatus)
+                StatusBadge(status = displayStatus)
 
                 if (!categoryName.isNullOrBlank()) {
                     ChipBadge(text = categoryName, containerColor = MaterialTheme.colorScheme.primaryContainer, textColor = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -193,16 +206,32 @@ fun OccurrenceCard(
     val event = occurrenceWithEvent.event
     val occurrence = occurrenceWithEvent.occurrence
 
+    val displayStatus = resolveEventDisplayStatus(
+        event = event,
+        occurrence = occurrence
+    )
+    val overdue = displayStatus == EventDisplayStatus.OVERDUE || isOverdue
+    val isCompleted = displayStatus == EventDisplayStatus.COMPLETED || occurrence.isCompleted
+    val isSkipped = displayStatus == EventDisplayStatus.SKIPPED || occurrence.isSkipped
+    val isActionable = !isCompleted && !isSkipped && (
+        displayStatus == EventDisplayStatus.ACTIVE ||
+            displayStatus == EventDisplayStatus.OVERDUE ||
+            displayStatus == EventDisplayStatus.RESCHEDULED ||
+            occurrence.status == OccurrenceStatus.PENDING ||
+            occurrence.status == OccurrenceStatus.OVERDUE ||
+            occurrence.status == OccurrenceStatus.RESCHEDULED
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .semantics {
-                contentDescription = "Occurrence: ${event.title}, Start: ${DateTimeFormatters.formatDateTime(occurrence.effectiveStartDateTime)}"
+                contentDescription = "Occurrence: ${event.title}, Start: ${DateTimeFormatters.formatDateTime(occurrence.effectiveStartDateTime)}, Status: ${displayStatus.name}"
             },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isOverdue) {
+            containerColor = if (overdue) {
                 MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
             } else {
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -215,7 +244,7 @@ fun OccurrenceCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Title & Occurrence Status
+            // Title & Strikethrough
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -225,28 +254,12 @@ fun OccurrenceCard(
                     text = event.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (occurrence.isCompleted || occurrence.isSkipped) TextDecoration.LineThrough else null,
+                    color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (isCompleted || isSkipped) TextDecoration.LineThrough else null,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-
-                if (occurrence.status != OccurrenceStatus.PENDING) {
-                    ChipBadge(
-                        text = occurrence.status.name,
-                        containerColor = if (occurrence.isCompleted) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.tertiaryContainer
-                        },
-                        textColor = if (occurrence.isCompleted) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onTertiaryContainer
-                        }
-                    )
-                }
             }
 
             // Date / Time
@@ -258,7 +271,7 @@ fun OccurrenceCard(
                     imageVector = Icons.Default.DateRange,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    tint = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 val timeStr = if (event.temporal.isAllDay) {
@@ -269,8 +282,8 @@ fun OccurrenceCard(
                 Text(
                     text = timeStr,
                     style = MaterialTheme.typography.bodySmall,
-                    fontWeight = if (isOverdue) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = if (overdue) FontWeight.Bold else FontWeight.Normal,
+                    color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 if (event.notificationSchedules.isNotEmpty()) {
@@ -291,7 +304,7 @@ fun OccurrenceCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 PriorityBadge(priority = event.priority)
-                StatusBadge(status = event.lifecycleStatus)
+                StatusBadge(status = displayStatus)
 
                 if (event.isRecurring) {
                     ChipBadge(
@@ -326,55 +339,81 @@ fun OccurrenceCard(
                 }
             }
 
-            // Quick Actions: Complete, Reschedule, Skip (only if not already completed or skipped)
-            val isActionable = !occurrence.isCompleted && !occurrence.isSkipped
+            // Quick Actions: Complete, Reschedule, Skip / Cancel (only if actionable)
             if (isActionable && (onComplete != null || onReschedule != null || onSkip != null)) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (onComplete != null) {
-                        FilledTonalButton(
-                            onClick = onComplete,
-                            modifier = Modifier
-                                .weight(1f)
-                                .semantics { contentDescription = "Complete occurrence ${event.title}" }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "Complete", style = MaterialTheme.typography.labelMedium)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (onComplete != null) {
+                            FilledTonalButton(
+                                onClick = onComplete,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 40.dp)
+                                    .semantics { contentDescription = "Complete occurrence ${event.title}" },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Complete",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                            }
                         }
-                    }
 
-                    if (onReschedule != null) {
-                        OutlinedButton(
-                            onClick = onReschedule,
-                            modifier = Modifier
-                                .weight(1f)
-                                .semantics { contentDescription = "Reschedule occurrence ${event.title}" }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "Reschedule", style = MaterialTheme.typography.labelMedium)
+                        if (onReschedule != null) {
+                            OutlinedButton(
+                                onClick = onReschedule,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 40.dp)
+                                    .semantics { contentDescription = "Reschedule occurrence ${event.title}" },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Reschedule",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
 
                     if (onSkip != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
                         OutlinedButton(
                             onClick = onSkip,
-                            modifier = Modifier.semantics { contentDescription = "Skip occurrence ${event.title}" }
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 36.dp)
+                                .semantics { contentDescription = "Cancel or skip occurrence ${event.title}" },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text(text = "Skip", style = MaterialTheme.typography.labelMedium)
+                            val skipLabel = if (overdue) "Cancel" else "Skip"
+                            Text(
+                                text = skipLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
                         }
                     }
                 }

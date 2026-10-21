@@ -43,7 +43,7 @@ class QuickAddParser(
         if (priorityMatch.find()) {
             val token = priorityMatch.group(1)?.lowercase(Locale.ROOT) ?: ""
             priority = when (token) {
-                "critical", "p1" -> Priority.CRITICAL
+                "critical", "urgent", "p1" -> Priority.CRITICAL
                 "high", "p2" -> Priority.HIGH
                 "normal", "medium", "p3" -> Priority.NORMAL
                 "low", "p4" -> Priority.LOW

@@ -89,7 +89,7 @@ class EventEditorViewModel(
             is EventEditorAction.UpdateNotes -> _uiState.update { it.copy(notes = action.notes) }
             is EventEditorAction.UpdateLocation -> _uiState.update { it.copy(locationDisplayName = action.locationName) }
             is EventEditorAction.UpdatePriority -> _uiState.update { it.copy(priority = action.priority) }
-            is EventEditorAction.SelectCategory -> _uiState.update { it.copy(categoryId = action.categoryId, validationError = null) }
+            is EventEditorAction.SelectCategory -> selectCategory(action.categoryId)
             is EventEditorAction.SelectEventType -> _uiState.update { it.copy(eventTypeId = action.eventTypeId, validationError = null) }
             is EventEditorAction.SearchEventType -> searchEventType(action.query)
             is EventEditorAction.SetDateMode -> setDateMode(action.mode)
@@ -129,6 +129,12 @@ class EventEditorViewModel(
                 val savedLocations = getSavedLocationsUseCase?.invoke()?.firstOrNull() ?: emptyList()
 
                 _uiState.update {
+                    val defaultCatId = if (it.categoryId.isBlank() && categories.isNotEmpty()) categories.first().id else it.categoryId
+                    val typesInCat = types.filter { t -> t.categoryId == defaultCatId }
+                    val defaultTypeId = if (it.eventTypeId.isBlank() && types.isNotEmpty()) {
+                        typesInCat.firstOrNull()?.id ?: types.first().id
+                    } else it.eventTypeId
+
                     it.copy(
                         isLoading = false,
                         availableCategories = categories,
@@ -140,8 +146,8 @@ class EventEditorViewModel(
                         availableNotificationProfiles = profiles,
                         availableCustomSounds = sounds,
                         availableSavedLocations = savedLocations,
-                        categoryId = if (it.categoryId.isBlank() && categories.isNotEmpty()) categories.first().id else it.categoryId,
-                        eventTypeId = if (it.eventTypeId.isBlank() && types.isNotEmpty()) types.first().id else it.eventTypeId
+                        categoryId = defaultCatId,
+                        eventTypeId = defaultTypeId
                     )
                 }
             }.catch { error ->
@@ -234,6 +240,13 @@ class EventEditorViewModel(
             }
 
             _uiState.update {
+                val types = it.availableEventTypes
+                val catId = it.categoryId
+                val typesInCat = types.filter { t -> t.categoryId == catId }
+                val resolvedTypeId = initialEventTypeId
+                    ?: if (it.eventTypeId.isNotBlank()) it.eventTypeId
+                    else (typesInCat.firstOrNull()?.id ?: types.firstOrNull()?.id.orEmpty())
+
                 it.copy(
                     isEditing = false,
                     eventId = null,
@@ -241,11 +254,29 @@ class EventEditorViewModel(
                     parentEventTitle = parentTitle,
                     temporal = if (initialDate != null) defaultTemporal else (it.temporal ?: defaultTemporal),
                     priority = settings.defaultEventPriority,
-                    eventTypeId = initialEventTypeId ?: it.eventTypeId,
+                    eventTypeId = resolvedTypeId,
                     timeZoneId = timeProvider.systemZoneId().id
                 )
             }
             checkConflicts()
+        }
+    }
+
+    private fun selectCategory(newCategoryId: String) {
+        val currentTypes = _uiState.value.availableEventTypes
+        val typesInCat = currentTypes.filter { it.categoryId == newCategoryId }
+        val updatedTypeId = if (typesInCat.isNotEmpty()) {
+            val currentSelectedBelongs = typesInCat.any { it.id == _uiState.value.eventTypeId }
+            if (currentSelectedBelongs) _uiState.value.eventTypeId else typesInCat.first().id
+        } else {
+            _uiState.value.eventTypeId
+        }
+        _uiState.update {
+            it.copy(
+                categoryId = newCategoryId,
+                eventTypeId = updatedTypeId,
+                validationError = null
+            )
         }
     }
 
@@ -466,13 +497,13 @@ class EventEditorViewModel(
             _uiState.update { it.copy(validationError = "Event title must not be blank") }
             return
         }
-        if (state.categoryId.isBlank()) {
-            _uiState.update { it.copy(validationError = "Please select a category") }
-            return
+        val resolvedCategoryId = state.categoryId.ifBlank {
+            state.availableCategories.firstOrNull()?.id ?: "cat_general"
         }
-        if (state.eventTypeId.isBlank()) {
-            _uiState.update { it.copy(validationError = "Please select an event type") }
-            return
+        val resolvedEventTypeId = state.eventTypeId.ifBlank {
+            state.availableEventTypes.firstOrNull { it.categoryId == resolvedCategoryId }?.id
+                ?: state.availableEventTypes.firstOrNull()?.id
+                ?: "type_general"
         }
         val temporal = state.temporal ?: EventDateTime.DateOnly(timeProvider.nowLocalDate())
 
@@ -510,8 +541,8 @@ class EventEditorViewModel(
                 title = title,
                 description = state.notes?.trim() ?: "",
                 priority = state.priority,
-                categoryId = state.categoryId,
-                eventTypeId = state.eventTypeId,
+                categoryId = resolvedCategoryId,
+                eventTypeId = resolvedEventTypeId,
                 lifecycleStatus = originalEvent?.lifecycleStatus ?: EventLifecycleStatus.ACTIVE,
                 isFavorite = originalEvent?.isFavorite ?: false,
                 temporal = temporal,

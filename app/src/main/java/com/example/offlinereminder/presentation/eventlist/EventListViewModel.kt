@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.offlinereminder.core.dispatcher.DefaultDispatcherProvider
 import com.example.offlinereminder.core.dispatcher.DispatcherProvider
 import com.example.offlinereminder.core.result.Result
+import com.example.offlinereminder.core.time.SystemTimeProvider
+import com.example.offlinereminder.core.time.TimeProvider
 import com.example.offlinereminder.domain.model.Event
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
+import com.example.offlinereminder.domain.model.resolveEventDisplayStatus
 import com.example.offlinereminder.domain.repository.EventRepository
+import com.example.offlinereminder.domain.repository.OccurrenceExceptionRepository
 import com.example.offlinereminder.domain.usecase.CancelNotificationsForEventUseCase
 import com.example.offlinereminder.domain.usecase.DeleteEventUseCase
 import com.example.offlinereminder.domain.usecase.GetCategoriesUseCase
@@ -35,9 +39,11 @@ class EventListViewModel(
     private val getEventGroupsUseCase: GetEventGroupsUseCase,
     private val getTagsUseCase: GetTagsUseCase,
     private val eventRepository: EventRepository,
+    private val occurrenceExceptionRepository: OccurrenceExceptionRepository? = null,
     private val deleteEventUseCase: DeleteEventUseCase? = null,
     private val cancelNotificationsForEventUseCase: CancelNotificationsForEventUseCase? = null,
     private val scheduleNotificationsForEventUseCase: ScheduleNotificationsForEventUseCase? = null,
+    private val timeProvider: TimeProvider = SystemTimeProvider(),
     private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider()
 ) : ViewModel() {
 
@@ -114,7 +120,14 @@ class EventListViewModel(
         viewModelScope.launch(dispatcherProvider.main) {
             currentStatus.flatMapLatest { status ->
                 _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                getEventsUseCase.getByStatus(status)
+                val exceptionsFlow = occurrenceExceptionRepository?.getAllExceptionsFlow()
+                    ?: kotlinx.coroutines.flow.flowOf(emptyList())
+                combine(
+                    getEventsUseCase.getByStatus(status),
+                    exceptionsFlow
+                ) { events, exceptions ->
+                    events to exceptions
+                }
             }.catch { error ->
                 _uiState.update {
                     it.copy(
@@ -122,11 +135,16 @@ class EventListViewModel(
                         errorMessage = error.message ?: "Failed to load events"
                     )
                 }
-            }.collect { events ->
+            }.collect { (events, exceptions) ->
+                val nowLdt = timeProvider.nowLocalDateTime()
+                val statusMap = events.associate { event ->
+                    event.id to resolveEventDisplayStatus(event, exceptions, nowLdt)
+                }
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         events = events,
+                        eventStatusMap = statusMap,
                         errorMessage = null
                     )
                 }

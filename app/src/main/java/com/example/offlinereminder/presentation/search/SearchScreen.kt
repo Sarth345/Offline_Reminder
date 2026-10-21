@@ -286,6 +286,7 @@ fun SearchContent(
 
                             EventCard(
                                 event = event,
+                                displayStatus = uiState.eventStatusMap[event.id] ?: com.example.offlinereminder.domain.model.EventDisplayStatus.ACTIVE,
                                 categoryName = catName,
                                 eventTypeName = typeName,
                                 groupNames = grpNames,
