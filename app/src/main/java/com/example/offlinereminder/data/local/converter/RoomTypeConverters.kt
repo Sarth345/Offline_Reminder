@@ -8,6 +8,8 @@ import com.example.offlinereminder.domain.model.OccurrenceStatus
 import com.example.offlinereminder.domain.model.Priority
 import com.example.offlinereminder.domain.model.RecurrenceFrequency
 import com.example.offlinereminder.domain.model.RelationshipType
+import com.example.offlinereminder.domain.model.ReminderDeliveryType
+import com.example.offlinereminder.domain.model.SoundSourceType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.DayOfWeek
@@ -96,6 +98,20 @@ class RoomTypeConverters {
 
     @TypeConverter
     fun toRelationshipType(value: String?): RelationshipType? = value?.let { RelationshipType.valueOf(it) }
+
+    // ReminderDeliveryType
+    @TypeConverter
+    fun fromDeliveryType(value: ReminderDeliveryType?): String? = value?.name
+
+    @TypeConverter
+    fun toDeliveryType(value: String?): ReminderDeliveryType? = value?.let { ReminderDeliveryType.valueOf(it) }
+
+    // SoundSourceType
+    @TypeConverter
+    fun fromSoundSourceType(value: SoundSourceType?): String? = value?.name
+
+    @TypeConverter
+    fun toSoundSourceType(value: String?): SoundSourceType? = value?.let { SoundSourceType.valueOf(it) }
 
     // Set<DayOfWeek>
     @TypeConverter

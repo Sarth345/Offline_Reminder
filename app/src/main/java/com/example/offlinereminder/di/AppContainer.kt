@@ -58,6 +58,9 @@ interface AppContainer {
     val tagRepository: TagRepository
     val occurrenceExceptionRepository: OccurrenceExceptionRepository
     val notificationRepository: NotificationRepository
+    val customSoundRepository: com.example.offlinereminder.domain.repository.CustomSoundRepository
+    val notificationProfileRepository: com.example.offlinereminder.domain.repository.NotificationProfileRepository
+    val eventTemplateRepository: com.example.offlinereminder.domain.repository.EventTemplateRepository
 
     val validateEventUseCase: ValidateEventUseCase
     val projectOccurrencesUseCase: ProjectOccurrencesUseCase

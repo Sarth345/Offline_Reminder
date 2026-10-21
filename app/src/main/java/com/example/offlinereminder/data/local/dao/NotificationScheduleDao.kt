@@ -36,6 +36,12 @@ interface NotificationScheduleDao {
     @Query("SELECT * FROM notification_schedules")
     suspend fun getAll(): List<NotificationScheduleEntity>
 
+    @Query("UPDATE notification_schedules SET custom_sound_id = NULL, sound_source = 'DEFAULT' WHERE custom_sound_id = :soundId")
+    suspend fun detachCustomSound(soundId: String)
+
+    @Query("UPDATE notification_schedules SET profile_id = NULL WHERE profile_id = :profileId")
+    suspend fun detachProfile(profileId: String)
+
     @Query("DELETE FROM notification_schedules")
     suspend fun deleteAll()
 }

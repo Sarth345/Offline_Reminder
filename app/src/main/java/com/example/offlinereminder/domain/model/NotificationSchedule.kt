@@ -20,7 +20,9 @@ data class NotificationSchedule(
     val id: String = UUID.randomUUID().toString(),
     val offsetDuration: Duration = Duration.ZERO,
     val triggerType: NotificationTriggerType = NotificationTriggerType.BEFORE_START,
-    val profileId: String? = null
+    val profileId: String? = null,
+    val deliveryType: ReminderDeliveryType = ReminderDeliveryType.NOTIFICATION,
+    val sound: SoundReference = SoundReference(SoundSourceType.DEFAULT)
 ) {
 
     fun validate(): Result<Unit> {

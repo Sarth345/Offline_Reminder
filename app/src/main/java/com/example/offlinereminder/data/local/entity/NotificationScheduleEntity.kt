@@ -6,6 +6,8 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.offlinereminder.domain.model.NotificationTriggerType
+import com.example.offlinereminder.domain.model.ReminderDeliveryType
+import com.example.offlinereminder.domain.model.SoundSourceType
 
 @Entity(
     tableName = "notification_schedules",
@@ -15,10 +17,17 @@ import com.example.offlinereminder.domain.model.NotificationTriggerType
             parentColumns = ["id"],
             childColumns = ["event_id"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = CustomSoundEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["custom_sound_id"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
-        Index(value = ["event_id"])
+        Index(value = ["event_id"]),
+        Index(value = ["custom_sound_id"])
     ]
 )
 data class NotificationScheduleEntity(
@@ -31,5 +40,13 @@ data class NotificationScheduleEntity(
     @ColumnInfo(name = "trigger_type")
     val triggerType: NotificationTriggerType,
     @ColumnInfo(name = "profile_id")
-    val profileId: String? = null
+    val profileId: String? = null,
+    @ColumnInfo(name = "delivery_type")
+    val deliveryType: ReminderDeliveryType = ReminderDeliveryType.NOTIFICATION,
+    @ColumnInfo(name = "sound_source")
+    val soundSource: SoundSourceType = SoundSourceType.DEFAULT,
+    @ColumnInfo(name = "custom_sound_id")
+    val customSoundId: String? = null,
+    @ColumnInfo(name = "system_sound_uri")
+    val systemSoundUri: String? = null
 )

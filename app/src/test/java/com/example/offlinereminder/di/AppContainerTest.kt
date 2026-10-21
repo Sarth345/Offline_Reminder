@@ -41,6 +41,9 @@ class AppContainerTest {
         assertNotNull(container.tagRepository)
         assertNotNull(container.occurrenceExceptionRepository)
         assertNotNull(container.notificationRepository)
+        assertNotNull(container.customSoundRepository)
+        assertNotNull(container.notificationProfileRepository)
+        assertNotNull(container.eventTemplateRepository)
 
         assertNotNull(container.createEventUseCase)
         assertNotNull(container.updateEventUseCase)

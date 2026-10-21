@@ -11,8 +11,11 @@ import com.example.offlinereminder.core.time.TimeProvider
 import com.example.offlinereminder.data.local.AppDatabase
 import com.example.offlinereminder.data.notification.AndroidAlarmScheduler
 import com.example.offlinereminder.data.repository.CategoryRepositoryImpl
+import com.example.offlinereminder.data.repository.CustomSoundRepositoryImpl
 import com.example.offlinereminder.data.repository.EventGroupRepositoryImpl
+import com.example.offlinereminder.data.repository.EventTemplateRepositoryImpl
 import com.example.offlinereminder.data.repository.EventTypeRepositoryImpl
+import com.example.offlinereminder.data.repository.NotificationProfileRepositoryImpl
 import com.example.offlinereminder.data.repository.OccurrenceExceptionRepositoryImpl
 import com.example.offlinereminder.data.repository.OfflineEventRepository
 import com.example.offlinereminder.data.repository.OfflineNotificationRepository
@@ -21,9 +24,12 @@ import com.example.offlinereminder.domain.notification.AlarmScheduler
 import com.example.offlinereminder.domain.recurrence.DefaultRecurrenceEngine
 import com.example.offlinereminder.domain.recurrence.RecurrenceEngine
 import com.example.offlinereminder.domain.repository.CategoryRepository
+import com.example.offlinereminder.domain.repository.CustomSoundRepository
 import com.example.offlinereminder.domain.repository.EventGroupRepository
 import com.example.offlinereminder.domain.repository.EventRepository
+import com.example.offlinereminder.domain.repository.EventTemplateRepository
 import com.example.offlinereminder.domain.repository.EventTypeRepository
+import com.example.offlinereminder.domain.repository.NotificationProfileRepository
 import com.example.offlinereminder.domain.repository.NotificationRepository
 import com.example.offlinereminder.domain.repository.OccurrenceExceptionRepository
 import com.example.offlinereminder.domain.repository.TagRepository
@@ -65,11 +71,26 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val dispatcherProvider: DispatcherProvider by lazy { DefaultDispatcherProvider() }
 
     override val database: AppDatabase by lazy {
-        Room.databaseBuilder(
-            context.applicationContext,
-            AppDatabase::class.java,
-            AppDatabase.DATABASE_NAME
-        ).build()
+        AppDatabase.buildDatabase(context)
+    }
+
+    override val customSoundRepository: CustomSoundRepository by lazy {
+        CustomSoundRepositoryImpl(
+            customSoundDao = database.customSoundDao(),
+            notificationScheduleDao = database.notificationScheduleDao(),
+            notificationProfileDao = database.notificationProfileDao()
+        )
+    }
+
+    override val notificationProfileRepository: NotificationProfileRepository by lazy {
+        NotificationProfileRepositoryImpl(
+            database.notificationProfileDao(),
+            database.notificationScheduleDao()
+        )
+    }
+
+    override val eventTemplateRepository: EventTemplateRepository by lazy {
+        EventTemplateRepositoryImpl(database.eventTemplateDao())
     }
 
     override val alarmScheduler: AlarmScheduler by lazy {
@@ -343,7 +364,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val deleteCategoryUseCase: com.example.offlinereminder.domain.usecase.DeleteCategoryUseCase by lazy {
-        com.example.offlinereminder.domain.usecase.DeleteCategoryUseCase(categoryRepository, eventRepository, eventTypeRepository)
+        com.example.offlinereminder.domain.usecase.DeleteCategoryUseCase(
+            categoryRepository = categoryRepository,
+            eventRepository = eventRepository,
+            eventTypeRepository = eventTypeRepository,
+            eventTemplateRepository = eventTemplateRepository
+        )
     }
 
     override val createEventTypeUseCase: com.example.offlinereminder.domain.usecase.CreateEventTypeUseCase by lazy {
@@ -355,7 +381,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val deleteEventTypeUseCase: com.example.offlinereminder.domain.usecase.DeleteEventTypeUseCase by lazy {
-        com.example.offlinereminder.domain.usecase.DeleteEventTypeUseCase(eventTypeRepository, eventRepository)
+        com.example.offlinereminder.domain.usecase.DeleteEventTypeUseCase(
+            eventTypeRepository = eventTypeRepository,
+            eventRepository = eventRepository,
+            eventTemplateRepository = eventTemplateRepository
+        )
     }
 
     override val backupRepository: com.example.offlinereminder.domain.backup.BackupRepository by lazy {

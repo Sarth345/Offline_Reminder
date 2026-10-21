@@ -5,6 +5,7 @@ import com.example.offlinereminder.domain.model.Category
 import com.example.offlinereminder.domain.repository.CategoryRepository
 import com.example.offlinereminder.domain.repository.EventRepository
 import com.example.offlinereminder.domain.repository.EventTypeRepository
+import com.example.offlinereminder.domain.repository.EventTemplateRepository
 import kotlinx.coroutines.flow.first
 import java.util.UUID
 
@@ -70,7 +71,8 @@ class UpdateCategoryUseCase(
 class DeleteCategoryUseCase(
     private val categoryRepository: CategoryRepository,
     private val eventRepository: EventRepository,
-    private val eventTypeRepository: EventTypeRepository
+    private val eventTypeRepository: EventTypeRepository,
+    private val eventTemplateRepository: EventTemplateRepository? = null
 ) {
     suspend operator fun invoke(categoryId: String): Result<Unit> = Result.runCatching {
         val category = categoryRepository.getCategory(categoryId)
@@ -89,6 +91,14 @@ class DeleteCategoryUseCase(
         if (referencedTypes.isNotEmpty()) {
             throw IllegalStateException(
                 "Cannot delete category '${category.name}' because it is in use by ${referencedTypes.size} event type(s)."
+            )
+        }
+
+        // 3. Check if any event templates reference this category
+        val referencedTemplatesCount = eventTemplateRepository?.countTemplatesByCategory(categoryId) ?: 0
+        if (referencedTemplatesCount > 0) {
+            throw IllegalStateException(
+                "Cannot delete category '${category.name}' because it is in use by $referencedTemplatesCount event template(s)."
             )
         }
 

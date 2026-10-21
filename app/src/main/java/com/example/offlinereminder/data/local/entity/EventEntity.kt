@@ -41,7 +41,8 @@ import java.time.LocalTime
         Index(value = ["lifecycle_status"]),
         Index(value = ["parent_event_id"]),
         Index(value = ["start_date"]),
-        Index(value = ["is_favorite"])
+        Index(value = ["is_favorite"]),
+        Index(value = ["lifecycle_status", "deleted_at"])
     ]
 )
 data class EventEntity(

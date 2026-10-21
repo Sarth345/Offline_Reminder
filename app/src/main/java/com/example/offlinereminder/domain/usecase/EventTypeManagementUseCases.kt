@@ -6,6 +6,7 @@ import com.example.offlinereminder.domain.model.EventType
 import com.example.offlinereminder.domain.repository.CategoryRepository
 import com.example.offlinereminder.domain.repository.EventRepository
 import com.example.offlinereminder.domain.repository.EventTypeRepository
+import com.example.offlinereminder.domain.repository.EventTemplateRepository
 import kotlinx.coroutines.flow.first
 import java.util.UUID
 
@@ -89,7 +90,8 @@ class UpdateEventTypeUseCase(
  */
 class DeleteEventTypeUseCase(
     private val eventTypeRepository: EventTypeRepository,
-    private val eventRepository: EventRepository
+    private val eventRepository: EventRepository,
+    private val eventTemplateRepository: EventTemplateRepository? = null
 ) {
     suspend operator fun invoke(eventTypeId: String): Result<Unit> = Result.runCatching {
         val eventType = eventTypeRepository.getEventType(eventTypeId)
@@ -100,6 +102,14 @@ class DeleteEventTypeUseCase(
         if (totalEventCount > 0) {
             throw IllegalStateException(
                 "Cannot delete event type '${eventType.name}' because it is in use by $totalEventCount reminder(s)."
+            )
+        }
+
+        // Check if any event templates reference this event type
+        val referencedTemplatesCount = eventTemplateRepository?.countTemplatesByEventType(eventTypeId) ?: 0
+        if (referencedTemplatesCount > 0) {
+            throw IllegalStateException(
+                "Cannot delete event type '${eventType.name}' because it is in use by $referencedTemplatesCount event template(s)."
             )
         }
 
