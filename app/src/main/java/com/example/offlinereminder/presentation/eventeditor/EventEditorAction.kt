@@ -41,6 +41,9 @@ sealed interface EventEditorAction {
     data class ToggleTag(val tagId: String) : EventEditorAction
     data class AddAttachment(val attachment: AttachmentMetadata) : EventEditorAction
     data class RemoveAttachment(val attachmentId: String) : EventEditorAction
+    data class SelectSavedLocation(val savedLocation: com.example.offlinereminder.domain.model.SavedLocation) : EventEditorAction
+    data class SaveRecurringSeries(val mode: com.example.offlinereminder.domain.usecase.RecurringSeriesEditMode) : EventEditorAction
+    data object DismissRecurringSeriesDialog : EventEditorAction
     data object CheckConflicts : EventEditorAction
     data object SaveEvent : EventEditorAction
     data object ClearError : EventEditorAction

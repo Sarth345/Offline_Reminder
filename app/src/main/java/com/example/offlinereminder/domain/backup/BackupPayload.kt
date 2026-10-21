@@ -19,7 +19,23 @@ data class BackupPayload(
     val occurrenceExceptions: List<OccurrenceExceptionBackupDto> = emptyList(),
     val dependencies: List<EventDependencyBackupDto> = emptyList(),
     val relationships: List<EventRelationshipBackupDto> = emptyList(),
+    val savedLocations: List<SavedLocationBackupDto> = emptyList(),
     val settings: SettingsBackupDto = SettingsBackupDto()
+)
+
+@Serializable
+data class SavedLocationBackupDto(
+    val id: String,
+    val name: String,
+    val address: String = "",
+    val building: String = "",
+    val room: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val notes: String = "",
+    val isFavorite: Boolean = false,
+    val createdAt: String,
+    val updatedAt: String
 )
 
 @Serializable
@@ -195,7 +211,10 @@ data class SettingsBackupDto(
     val defaultSnoozeDurationMinutes: Int = 10,
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
-    val quietHours: QuietHoursBackupDto = QuietHoursBackupDto()
+    val quietHours: QuietHoursBackupDto = QuietHoursBackupDto(),
+    val appLockEnabled: Boolean = false,
+    val appLockTimeoutMinutes: Int = 0,
+    val appLockOnBackground: Boolean = true
 )
 
 @Serializable

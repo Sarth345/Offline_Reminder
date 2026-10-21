@@ -18,7 +18,7 @@ data class OccurrenceException(
     val eventId: String,
     val originalStartDateTime: LocalDateTime,
     val originalZoneId: ZoneId = ZoneId.systemDefault(),
-    val status: OccurrenceStatus,
+    val status: OccurrenceStatus = OccurrenceStatus.PENDING,
     val rescheduledStartDateTime: LocalDateTime? = null,
     val rescheduledEndDateTime: LocalDateTime? = null,
     val rescheduledZoneId: ZoneId? = null,
@@ -34,11 +34,22 @@ data class OccurrenceException(
     val occurrenceId: String
         get() = "${eventId}_${originalStartDateTime}_${originalZoneId.id}"
 
+    val originalDate: java.time.LocalDate
+        get() = originalStartDateTime.toLocalDate()
+
     init {
         if (status == OccurrenceStatus.RESCHEDULED) {
             requireNotNull(rescheduledStartDateTime) {
                 "rescheduledStartDateTime must not be null when status is RESCHEDULED"
             }
         }
+    }
+
+    companion object {
+        fun createId(
+            eventId: String,
+            originalStartDateTime: LocalDateTime,
+            originalZoneId: ZoneId = ZoneId.systemDefault()
+        ): String = "${eventId}_${originalStartDateTime}_${originalZoneId.id}"
     }
 }

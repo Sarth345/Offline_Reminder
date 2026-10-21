@@ -11,15 +11,20 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.offlinereminder.di.ViewModelFactory
 import com.example.offlinereminder.domain.model.ThemeMode
 import com.example.offlinereminder.presentation.main.MainScreen
+import com.example.offlinereminder.presentation.security.AppLockScreen
 import com.example.offlinereminder.presentation.settings.SettingsViewModel
 import com.example.offlinereminder.ui.theme.OfflineReminderTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val appContainer by lazy {
+        (application as OfflineReminderApplication).container
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val appContainer = (application as OfflineReminderApplication).container
         val viewModelFactory = ViewModelFactory(appContainer)
 
         setContent {
@@ -31,9 +36,25 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK -> true
             }
 
+            val isLocked by appContainer.appLockCoordinator.isLocked.collectAsState()
+
             OfflineReminderTheme(darkTheme = isDarkTheme) {
-                MainScreen(viewModelFactory = viewModelFactory)
+                if (isLocked) {
+                    AppLockScreen(appLockCoordinator = appContainer.appLockCoordinator)
+                } else {
+                    MainScreen(viewModelFactory = viewModelFactory)
+                }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        appContainer.appLockCoordinator.onAppForegrounded()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        appContainer.appLockCoordinator.onAppBackgrounded()
     }
 }

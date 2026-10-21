@@ -87,6 +87,11 @@ fun SettingsScreen(
     onNavigateToTrash: () -> Unit = {},
     onNavigateToArchive: () -> Unit = {},
     onNavigateToNotificationProfiles: () -> Unit = {},
+    onNavigateToAppLock: () -> Unit = {},
+    onNavigateToSavedLocations: () -> Unit = {},
+    onNavigateToExport: () -> Unit = {},
+    onNavigateToIcsImport: () -> Unit = {},
+    onNavigateToStatistics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -124,6 +129,11 @@ fun SettingsScreen(
         onNavigateToTrash = onNavigateToTrash,
         onNavigateToArchive = onNavigateToArchive,
         onNavigateToNotificationProfiles = onNavigateToNotificationProfiles,
+        onNavigateToAppLock = onNavigateToAppLock,
+        onNavigateToSavedLocations = onNavigateToSavedLocations,
+        onNavigateToExport = onNavigateToExport,
+        onNavigateToIcsImport = onNavigateToIcsImport,
+        onNavigateToStatistics = onNavigateToStatistics,
         modifier = modifier
     )
 }
@@ -140,6 +150,11 @@ fun SettingsContent(
     onNavigateToTrash: () -> Unit = {},
     onNavigateToArchive: () -> Unit = {},
     onNavigateToNotificationProfiles: () -> Unit = {},
+    onNavigateToAppLock: () -> Unit = {},
+    onNavigateToSavedLocations: () -> Unit = {},
+    onNavigateToExport: () -> Unit = {},
+    onNavigateToIcsImport: () -> Unit = {},
+    onNavigateToStatistics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showAddCategoryDialog by remember { mutableStateOf(false) }
@@ -287,6 +302,46 @@ fun SettingsContent(
                         ) {
                             Text("Trash")
                         }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onNavigateToAppLock,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Open App Lock settings" }
+                        ) {
+                            Text("App Lock")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToSavedLocations,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Open saved locations" }
+                        ) {
+                            Text("Locations")
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onNavigateToExport,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Export calendar and events" }
+                        ) {
+                            Text("Export Data")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToIcsImport,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Import iCalendar file" }
+                        ) {
+                            Text("Import ICS")
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = onNavigateToStatistics,
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Open statistics and productivity insights" }
+                    ) {
+                        Text("Statistics & Insights")
                     }
                 }
             }
@@ -1107,7 +1162,7 @@ private fun AboutPlanerizeCard() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Version 1.0.0 • 100% Offline & Private",
+                text = "Version 1.1.0 • 100% Offline & Private",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )

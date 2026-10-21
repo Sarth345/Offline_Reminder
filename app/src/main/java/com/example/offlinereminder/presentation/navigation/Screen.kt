@@ -21,6 +21,11 @@ sealed class Screen(val route: String) {
     data object Templates : Screen("templates")
     data object NotificationProfiles : Screen("notification_profiles")
     data object AppLock : Screen("app_lock")
+    data object AppLockSettings : Screen("app_lock_settings")
+    data object SavedLocations : Screen("saved_locations")
+    data object Export : Screen("export")
+    data object IcsImport : Screen("ics_import")
+    data object Statistics : Screen("statistics")
 
     data object EventEditor : Screen("event_editor?eventId={eventId}&initialDate={initialDate}&eventTypeId={eventTypeId}") {
         fun createRoute(

@@ -317,6 +317,29 @@ fun EventEditorContent(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
+                    if (uiState.availableSavedLocations.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            uiState.availableSavedLocations.take(4).forEach { loc ->
+                                FilterChip(
+                                    selected = uiState.locationDisplayName == loc.name,
+                                    onClick = { onAction(EventEditorAction.SelectSavedLocation(loc)) },
+                                    label = { Text(loc.name) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
 
                     // 4. Priority Selection
                     EditorSectionCard(title = "Priority") {
@@ -838,6 +861,55 @@ fun EventEditorContent(
             },
             confirmButton = {
                 TextButton(onClick = { showTemplatesDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (uiState.showRecurringSeriesDialog) {
+        AlertDialog(
+            onDismissRequest = { onAction(EventEditorAction.DismissRecurringSeriesDialog) },
+            title = { Text("Edit Recurring Event") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "This is a recurring event. How would you like to apply your changes?",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Button(
+                        onClick = {
+                            onAction(EventEditorAction.SaveRecurringSeries(com.example.offlinereminder.domain.usecase.RecurringSeriesEditMode.THIS_OCCURRENCE))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("This Occurrence Only")
+                    }
+                    Button(
+                        onClick = {
+                            onAction(EventEditorAction.SaveRecurringSeries(com.example.offlinereminder.domain.usecase.RecurringSeriesEditMode.THIS_AND_FOLLOWING))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("This and All Following")
+                    }
+                    Button(
+                        onClick = {
+                            onAction(EventEditorAction.SaveRecurringSeries(com.example.offlinereminder.domain.usecase.RecurringSeriesEditMode.ENTIRE_SERIES))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Entire Series")
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { onAction(EventEditorAction.DismissRecurringSeriesDialog) }) {
                     Text("Cancel")
                 }
             }

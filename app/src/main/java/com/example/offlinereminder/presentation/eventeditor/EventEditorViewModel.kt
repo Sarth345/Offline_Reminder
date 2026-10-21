@@ -65,7 +65,9 @@ class EventEditorViewModel(
     private val detectEventConflictsUseCase: DetectEventConflictsUseCase? = null,
     private val timeProvider: TimeProvider = SystemTimeProvider(),
     private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider(),
-    private val settingsRepository: SettingsRepository? = null
+    private val settingsRepository: SettingsRepository? = null,
+    private val editRecurringSeriesUseCase: com.example.offlinereminder.domain.usecase.EditRecurringSeriesUseCase? = null,
+    private val getSavedLocationsUseCase: com.example.offlinereminder.domain.usecase.GetSavedLocationsUseCase? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EventEditorUiState(isLoading = true))
@@ -104,6 +106,9 @@ class EventEditorViewModel(
             is EventEditorAction.ToggleTag -> toggleTag(action.tagId)
             is EventEditorAction.AddAttachment -> addAttachment(action.attachment)
             is EventEditorAction.RemoveAttachment -> removeAttachment(action.attachmentId)
+            is EventEditorAction.SelectSavedLocation -> _uiState.update { it.copy(locationDisplayName = action.savedLocation.name) }
+            is EventEditorAction.SaveRecurringSeries -> saveRecurringSeries(action.mode)
+            is EventEditorAction.DismissRecurringSeriesDialog -> _uiState.update { it.copy(showRecurringSeriesDialog = false, pendingEditedDraft = null) }
             is EventEditorAction.CheckConflicts -> checkConflicts()
             is EventEditorAction.SaveEvent -> saveEvent()
             is EventEditorAction.ClearError -> _uiState.update { it.copy(errorMessage = null, validationError = null) }
@@ -121,6 +126,7 @@ class EventEditorViewModel(
                 val templates = getEventTemplatesUseCase?.invoke()?.firstOrNull() ?: emptyList()
                 val profiles = getNotificationProfilesUseCase?.invoke()?.firstOrNull() ?: emptyList()
                 val sounds = getCustomSoundsUseCase?.invoke()?.firstOrNull() ?: emptyList()
+                val savedLocations = getSavedLocationsUseCase?.invoke()?.firstOrNull() ?: emptyList()
 
                 _uiState.update {
                     it.copy(
@@ -133,6 +139,7 @@ class EventEditorViewModel(
                         availableTemplates = templates,
                         availableNotificationProfiles = profiles,
                         availableCustomSounds = sounds,
+                        availableSavedLocations = savedLocations,
                         categoryId = if (it.categoryId.isBlank() && categories.isNotEmpty()) categories.first().id else it.categoryId,
                         eventTypeId = if (it.eventTypeId.isBlank() && types.isNotEmpty()) types.first().id else it.eventTypeId
                     )
@@ -474,7 +481,28 @@ class EventEditorViewModel(
 
             val now = timeProvider.nowInstant()
             val location = if (state.locationDisplayName.isNotBlank()) {
-                LocationData(placeName = state.locationDisplayName.trim())
+                val matched = state.availableSavedLocations.firstOrNull {
+                    it.name.equals(state.locationDisplayName.trim(), ignoreCase = true)
+                }
+                if (matched != null) {
+                    LocationData(
+                        id = matched.id,
+                        placeName = matched.name,
+                        addressText = matched.address,
+                        building = matched.building,
+                        room = matched.room,
+                        latitude = matched.latitude,
+                        longitude = matched.longitude,
+                        notes = matched.notes,
+                        isSavedLocation = true
+                    )
+                } else {
+                    LocationData(
+                        id = UUID.randomUUID().toString(),
+                        placeName = state.locationDisplayName.trim(),
+                        isSavedLocation = false
+                    )
+                }
             } else null
 
             val event = Event(
@@ -498,6 +526,18 @@ class EventEditorViewModel(
                 createdAt = originalEvent?.createdAt ?: now,
                 updatedAt = now
             )
+
+            if (state.isEditing && originalEvent?.isRecurring == true && editRecurringSeriesUseCase != null) {
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        showRecurringSeriesDialog = true,
+                        pendingEditedDraft = event,
+                        targetOccurrenceStart = originalEvent?.temporal?.startLocalDateTime()
+                    )
+                }
+                return@launch
+            }
 
             val result = if (state.isEditing) {
                 updateEventUseCase(event)
@@ -525,6 +565,58 @@ class EventEditorViewModel(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    private fun saveRecurringSeries(mode: com.example.offlinereminder.domain.usecase.RecurringSeriesEditMode) {
+        val pending = _uiState.value.pendingEditedDraft ?: return
+        val orig = originalEvent ?: return
+        val startLdt = _uiState.value.targetOccurrenceStart ?: orig.temporal.startLocalDateTime()
+        val zone = when (val t = orig.temporal) {
+            is EventDateTime.DateTime -> t.zoneId
+            is EventDateTime.DateTimeRange -> t.zoneId
+            else -> timeProvider.systemZoneId()
+        }
+
+        viewModelScope.launch(dispatcherProvider.main) {
+            _uiState.update { it.copy(isSaving = true, showRecurringSeriesDialog = false) }
+            val savedEvent: Event = if (editRecurringSeriesUseCase != null) {
+                when (val r = editRecurringSeriesUseCase(orig, startLdt, zone, pending, mode)) {
+                    is Result.Success -> r.data
+                    is Result.Failure -> {
+                        _uiState.update {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = r.error.message ?: "Failed to update recurring series"
+                            )
+                        }
+                        return@launch
+                    }
+                }
+            } else {
+                when (val r = updateEventUseCase(pending)) {
+                    is Result.Success -> pending
+                    is Result.Failure -> {
+                        _uiState.update {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = r.error.message ?: "Failed to update recurring series"
+                            )
+                        }
+                        return@launch
+                    }
+                }
+            }
+
+            originalEvent = savedEvent
+            _uiState.update {
+                it.copy(
+                    isSaving = false,
+                    isSaved = true,
+                    eventId = savedEvent.id,
+                    pendingEditedDraft = null
+                )
             }
         }
     }

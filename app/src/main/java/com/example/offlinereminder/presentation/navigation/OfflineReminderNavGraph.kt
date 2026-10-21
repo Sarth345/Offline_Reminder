@@ -248,7 +248,12 @@ fun OfflineReminderNavGraph(
                 onNavigateToTemplates = { navController.navigate(Screen.Templates.route) },
                 onNavigateToTrash = { navController.navigate(Screen.Trash.route) },
                 onNavigateToArchive = { navController.navigate(Screen.Archive.route) },
-                onNavigateToNotificationProfiles = { navController.navigate(Screen.NotificationProfiles.route) }
+                onNavigateToNotificationProfiles = { navController.navigate(Screen.NotificationProfiles.route) },
+                onNavigateToAppLock = { navController.navigate(Screen.AppLockSettings.route) },
+                onNavigateToSavedLocations = { navController.navigate(Screen.SavedLocations.route) },
+                onNavigateToExport = { navController.navigate(Screen.Export.route) },
+                onNavigateToIcsImport = { navController.navigate(Screen.IcsImport.route) },
+                onNavigateToStatistics = { navController.navigate(Screen.Statistics.route) }
             )
         }
 
@@ -290,6 +295,56 @@ fun OfflineReminderNavGraph(
             val profilesViewModel: NotificationProfilesViewModel = viewModel(factory = viewModelFactory)
             NotificationProfilesScreen(
                 viewModel = profilesViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 14. App Lock Security Settings
+        composable(route = Screen.AppLockSettings.route) {
+            com.example.offlinereminder.presentation.security.AppLockSettingsScreen(
+                getAppLockSettingsUseCase = viewModelFactory.appContainer.getAppLockSettingsUseCase,
+                updateAppLockSettingsUseCase = viewModelFactory.appContainer.updateAppLockSettingsUseCase,
+                appLockCoordinator = viewModelFactory.appContainer.appLockCoordinator,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 15. Saved Locations Management
+        composable(route = Screen.SavedLocations.route) {
+            val savedLocationsViewModel: com.example.offlinereminder.presentation.locations.SavedLocationsViewModel =
+                viewModel(factory = viewModelFactory)
+            com.example.offlinereminder.presentation.locations.SavedLocationsScreen(
+                viewModel = savedLocationsViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 16. Standalone Export
+        composable(route = Screen.Export.route) {
+            val exportViewModel: com.example.offlinereminder.presentation.data.ExportViewModel =
+                viewModel(factory = viewModelFactory)
+            com.example.offlinereminder.presentation.data.ExportScreen(
+                viewModel = exportViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 17. iCalendar (.ics) Import
+        composable(route = Screen.IcsImport.route) {
+            val icsImportViewModel: com.example.offlinereminder.presentation.data.IcsImportViewModel =
+                viewModel(factory = viewModelFactory)
+            com.example.offlinereminder.presentation.data.IcsImportScreen(
+                viewModel = icsImportViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 18. Statistics & Insights
+        composable(route = Screen.Statistics.route) {
+            val statisticsViewModel: com.example.offlinereminder.presentation.statistics.StatisticsViewModel =
+                viewModel(factory = viewModelFactory)
+            com.example.offlinereminder.presentation.statistics.StatisticsScreen(
+                viewModel = statisticsViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

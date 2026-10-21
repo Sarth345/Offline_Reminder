@@ -599,7 +599,99 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             eventTypeRepository = eventTypeRepository,
             eventGroupRepository = eventGroupRepository,
             tagRepository = tagRepository,
+            timeProvider = timeProvider,
+            savedLocationRepository = savedLocationRepository
+        )
+    }
+
+    override val savedLocationRepository: com.example.offlinereminder.domain.repository.SavedLocationRepository by lazy {
+        com.example.offlinereminder.data.repository.SavedLocationRepositoryImpl(
+            database.savedLocationDao()
+        )
+    }
+
+    override val getSavedLocationsUseCase: com.example.offlinereminder.domain.usecase.GetSavedLocationsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetSavedLocationsUseCase(savedLocationRepository)
+    }
+
+    override val saveSavedLocationUseCase: com.example.offlinereminder.domain.usecase.SaveSavedLocationUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.SaveSavedLocationUseCase(savedLocationRepository, timeProvider)
+    }
+
+    override val deleteSavedLocationUseCase: com.example.offlinereminder.domain.usecase.DeleteSavedLocationUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DeleteSavedLocationUseCase(savedLocationRepository)
+    }
+
+    override val toggleSavedLocationFavoriteUseCase: com.example.offlinereminder.domain.usecase.ToggleSavedLocationFavoriteUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.ToggleSavedLocationFavoriteUseCase(savedLocationRepository)
+    }
+
+    override val getAppLockSettingsUseCase: com.example.offlinereminder.domain.usecase.GetAppLockSettingsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetAppLockSettingsUseCase(settingsRepository)
+    }
+
+    override val updateAppLockSettingsUseCase: com.example.offlinereminder.domain.usecase.UpdateAppLockSettingsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.UpdateAppLockSettingsUseCase(settingsRepository)
+    }
+
+    override val checkAppLockRequiredUseCase: com.example.offlinereminder.domain.usecase.CheckAppLockRequiredUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.CheckAppLockRequiredUseCase(settingsRepository, timeProvider)
+    }
+
+    override val appLockCoordinator: com.example.offlinereminder.presentation.security.AppLockCoordinator by lazy {
+        com.example.offlinereminder.presentation.security.AppLockCoordinator(
+            checkAppLockRequiredUseCase = checkAppLockRequiredUseCase,
+            getAppLockSettingsUseCase = getAppLockSettingsUseCase,
             timeProvider = timeProvider
+        )
+    }
+
+    override val editRecurringSeriesUseCase: com.example.offlinereminder.domain.usecase.EditRecurringSeriesUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.EditRecurringSeriesUseCase(
+            eventRepository = eventRepository,
+            occurrenceExceptionRepository = occurrenceExceptionRepository,
+            scheduleNotificationsUseCase = scheduleNotificationsForEventUseCase,
+            cancelNotificationsUseCase = cancelNotificationsForEventUseCase,
+            timeProvider = timeProvider
+        )
+    }
+
+    override val exportEventsUseCase: com.example.offlinereminder.domain.usecase.ExportEventsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.ExportEventsUseCase(
+            eventRepository = eventRepository,
+            timeProvider = timeProvider,
+            occurrenceExceptionRepository = occurrenceExceptionRepository
+        )
+    }
+
+    override val previewIcsImportUseCase: com.example.offlinereminder.domain.usecase.PreviewIcsImportUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.PreviewIcsImportUseCase(
+            categoryRepository = categoryRepository,
+            eventTypeRepository = eventTypeRepository,
+            timeProvider = timeProvider
+        )
+    }
+
+    override val confirmIcsImportUseCase: com.example.offlinereminder.domain.usecase.ConfirmIcsImportUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.ConfirmIcsImportUseCase(
+            eventRepository = eventRepository,
+            scheduleNotificationsUseCase = scheduleNotificationsForEventUseCase,
+            occurrenceExceptionRepository = occurrenceExceptionRepository
+        )
+    }
+
+    override val getStatisticsUseCase: com.example.offlinereminder.domain.usecase.GetStatisticsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetStatisticsUseCase(
+            eventRepository = eventRepository,
+            categoryRepository = categoryRepository,
+            occurrenceExceptionRepository = occurrenceExceptionRepository,
+            timeProvider = timeProvider
+        )
+    }
+
+    override val getProductivityInsightsUseCase: com.example.offlinereminder.domain.usecase.GetProductivityInsightsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetProductivityInsightsUseCase(
+            getStatisticsUseCase = getStatisticsUseCase
         )
     }
 }

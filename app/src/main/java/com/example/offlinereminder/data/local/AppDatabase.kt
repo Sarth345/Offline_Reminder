@@ -23,6 +23,7 @@ import com.example.offlinereminder.data.local.dao.NotificationProfileDao
 import com.example.offlinereminder.data.local.dao.NotificationScheduleDao
 import com.example.offlinereminder.data.local.dao.OccurrenceExceptionDao
 import com.example.offlinereminder.data.local.dao.RestoreOperationDao
+import com.example.offlinereminder.data.local.dao.SavedLocationDao
 import com.example.offlinereminder.data.local.dao.TagDao
 import com.example.offlinereminder.data.local.entity.AttachmentEntity
 import com.example.offlinereminder.data.local.entity.CategoryEntity
@@ -42,6 +43,7 @@ import com.example.offlinereminder.data.local.entity.NotificationProfileEntity
 import com.example.offlinereminder.data.local.entity.NotificationScheduleEntity
 import com.example.offlinereminder.data.local.entity.OccurrenceExceptionEntity
 import com.example.offlinereminder.data.local.entity.RestoreOperationEntity
+import com.example.offlinereminder.data.local.entity.SavedLocationEntity
 import com.example.offlinereminder.data.local.entity.TagEntity
 
 @Database(
@@ -64,9 +66,10 @@ import com.example.offlinereminder.data.local.entity.TagEntity
         RestoreOperationEntity::class,
         CustomSoundEntity::class,
         NotificationProfileEntity::class,
-        EventTemplateEntity::class
+        EventTemplateEntity::class,
+        SavedLocationEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(RoomTypeConverters::class)
@@ -88,6 +91,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun customSoundDao(): CustomSoundDao
     abstract fun notificationProfileDao(): NotificationProfileDao
     abstract fun eventTemplateDao(): EventTemplateDao
+    abstract fun savedLocationDao(): SavedLocationDao
 
     companion object {
         const val DATABASE_NAME = "offline_reminder.db"
@@ -211,13 +215,37 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `saved_locations` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `name` TEXT NOT NULL,
+                        `address` TEXT NOT NULL,
+                        `building` TEXT NOT NULL,
+                        `room` TEXT NOT NULL,
+                        `latitude` REAL,
+                        `longitude` REAL,
+                        `notes` TEXT NOT NULL,
+                        `is_favorite` INTEGER NOT NULL,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_saved_locations_name` ON `saved_locations` (`name`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_saved_locations_is_favorite` ON `saved_locations` (`is_favorite`)")
+            }
+        }
+
         fun buildDatabase(context: Context): AppDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
         }
     }

@@ -353,9 +353,9 @@ class AppDatabaseMigrationTest {
 
         v1Db.close()
 
-        // 2. Open with Room at version 2 and apply MIGRATION_1_2
+        // 2. Open with Room at current version and apply migrations
         roomDb = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
 
@@ -478,7 +478,7 @@ class AppDatabaseMigrationTest {
         v1Db.close()
 
         roomDb = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
 
@@ -552,7 +552,7 @@ class AppDatabaseMigrationTest {
         v1Db.close()
 
         roomDb = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
 
@@ -586,7 +586,7 @@ class AppDatabaseMigrationTest {
         v1Db.close()
 
         roomDb = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
 
@@ -619,5 +619,62 @@ class AppDatabaseMigrationTest {
 
         val byType = roomDb!!.eventTemplateDao().countTemplatesByEventType("type-meeting")
         assertEquals(1, byType)
+    }
+
+    @Test
+    fun migration2To3_realisticPre1_1DataRemainsIntactAndSavedLocationsWork() = runTest {
+        val v1Db = createV1Database()
+        val nowMillis = Instant.parse("2026-10-21T00:00:00Z").toEpochMilli()
+        v1Db.execSQL("INSERT INTO categories VALUES ('cat-pre11', 'Personal', -16776961, 'icon_personal', 1, 1)")
+        v1Db.execSQL("INSERT INTO event_types VALUES ('type-task', 'Task', 'task_key', 'cat-pre11', NULL, NULL, '[]', 0, 0, $nowMillis)")
+        v1Db.execSQL("""
+            INSERT INTO events VALUES (
+                'evt-pre11-1', 'Pay Mortgage', 'Important financial task', 'type-task', 'cat-pre11', 'HIGH',
+                'DATE_ONLY', '2026-10-31', NULL, NULL, NULL, 'UTC',
+                'Bank Downtown', NULL, NULL, NULL, NULL, NULL,
+                0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                'ACTIVE', 0, NULL, NULL, '{}', NULL, $nowMillis, $nowMillis
+            )
+        """.trimIndent())
+        v1Db.close()
+
+        roomDb = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+            .allowMainThreadQueries()
+            .build()
+
+        // Verify existing V2 / pre-1.1 event data is intact
+        val eventEntity = roomDb!!.eventDao().getById("evt-pre11-1")
+        assertNotNull(eventEntity)
+        assertEquals("Pay Mortgage", eventEntity?.title)
+        assertEquals("Important financial task", eventEntity?.description)
+        assertEquals("HIGH", eventEntity?.priority?.name)
+        assertEquals("Bank Downtown", eventEntity?.locationPlaceName)
+
+        // Verify new saved_locations table in V3
+        val savedLoc = com.example.offlinereminder.data.local.entity.SavedLocationEntity(
+            id = "loc-mig-1",
+            name = "Headquarters",
+            address = "500 Market St",
+            building = "Tower A",
+            room = "Rm 401",
+            latitude = 37.79,
+            longitude = -122.40,
+            notes = "Security card needed",
+            isFavorite = true,
+            createdAt = Instant.ofEpochMilli(nowMillis),
+            updatedAt = Instant.ofEpochMilli(nowMillis)
+        )
+        roomDb!!.savedLocationDao().insert(savedLoc)
+
+        val retrievedLoc = roomDb!!.savedLocationDao().getById("loc-mig-1")
+        assertNotNull(retrievedLoc)
+        assertEquals("Headquarters", retrievedLoc?.name)
+        assertEquals("Tower A", retrievedLoc?.building)
+        assertTrue(retrievedLoc?.isFavorite == true)
+
+        val searchLoc = roomDb!!.savedLocationDao().searchFlow("market").first()
+        assertEquals(1, searchLoc.size)
+        assertEquals("Headquarters", searchLoc.first().name)
     }
 }

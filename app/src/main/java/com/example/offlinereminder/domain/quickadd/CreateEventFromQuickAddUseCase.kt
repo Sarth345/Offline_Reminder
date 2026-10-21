@@ -7,11 +7,13 @@ import com.example.offlinereminder.domain.model.Event
 import com.example.offlinereminder.domain.model.EventDateTime
 import com.example.offlinereminder.domain.model.EventGroup
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
+import com.example.offlinereminder.domain.model.LocationData
 import com.example.offlinereminder.domain.model.NotificationSchedule
 import com.example.offlinereminder.domain.model.Tag
 import com.example.offlinereminder.domain.repository.CategoryRepository
 import com.example.offlinereminder.domain.repository.EventGroupRepository
 import com.example.offlinereminder.domain.repository.EventTypeRepository
+import com.example.offlinereminder.domain.repository.SavedLocationRepository
 import com.example.offlinereminder.domain.repository.TagRepository
 import com.example.offlinereminder.domain.usecase.CreateEventUseCase
 import kotlinx.coroutines.flow.first
@@ -30,7 +32,8 @@ class CreateEventFromQuickAddUseCase(
     private val eventTypeRepository: EventTypeRepository,
     private val eventGroupRepository: EventGroupRepository,
     private val tagRepository: TagRepository,
-    private val timeProvider: TimeProvider
+    private val timeProvider: TimeProvider,
+    private val savedLocationRepository: SavedLocationRepository? = null
 ) {
     suspend operator fun invoke(draft: QuickAddDraft): Result<Event> {
         if (!draft.isValid) {
@@ -114,6 +117,31 @@ class CreateEventFromQuickAddUseCase(
         // 5. Construct Temporal representation
         val zone = timeProvider.systemZoneId()
         val temporal: EventDateTime = when {
+            draft.date != null && draft.time != null && draft.endTime != null -> {
+                val startDt = LocalDateTime.of(draft.date, draft.time)
+                val endDt = LocalDateTime.of(
+                    if (draft.endTime.isBefore(draft.time)) draft.date.plusDays(1) else draft.date,
+                    draft.endTime
+                )
+                EventDateTime.DateTimeRange(
+                    startDateTime = startDt,
+                    endDateTime = endDt,
+                    zoneId = zone
+                )
+            }
+            draft.date == null && draft.time != null && draft.endTime != null -> {
+                val today = timeProvider.nowLocalDate()
+                val startDt = LocalDateTime.of(today, draft.time)
+                val endDt = LocalDateTime.of(
+                    if (draft.endTime.isBefore(draft.time)) today.plusDays(1) else today,
+                    draft.endTime
+                )
+                EventDateTime.DateTimeRange(
+                    startDateTime = startDt,
+                    endDateTime = endDt,
+                    zoneId = zone
+                )
+            }
             draft.date != null && draft.time != null -> {
                 EventDateTime.DateTime(
                     dateTime = LocalDateTime.of(draft.date, draft.time),
@@ -145,6 +173,31 @@ class CreateEventFromQuickAddUseCase(
             notificationSchedules.add(schedule)
         }
 
+        // 7. Resolve Location
+        val location: LocationData? = if (!draft.locationName.isNullOrBlank()) {
+            val savedLocations = runCatching { savedLocationRepository?.getAllLocationsFlow()?.first() }.getOrNull()
+            val matched = savedLocations?.firstOrNull { it.name.equals(draft.locationName, ignoreCase = true) }
+            if (matched != null) {
+                LocationData(
+                    id = matched.id,
+                    placeName = matched.name,
+                    addressText = matched.address,
+                    building = matched.building,
+                    room = matched.room,
+                    latitude = matched.latitude,
+                    longitude = matched.longitude,
+                    notes = matched.notes,
+                    isSavedLocation = true
+                )
+            } else {
+                LocationData(
+                    id = UUID.randomUUID().toString(),
+                    placeName = draft.locationName,
+                    isSavedLocation = false
+                )
+            }
+        } else null
+
         val now = timeProvider.nowInstant()
         val event = Event(
             id = UUID.randomUUID().toString(),
@@ -154,6 +207,7 @@ class CreateEventFromQuickAddUseCase(
             categoryId = categoryId,
             priority = draft.priority,
             temporal = temporal,
+            location = location,
             recurrenceRule = draft.recurrenceRule,
             notificationSchedules = notificationSchedules,
             groupIds = groupIds,

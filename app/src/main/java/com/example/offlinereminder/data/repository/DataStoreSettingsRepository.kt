@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.example.offlinereminder.core.result.Result
+import com.example.offlinereminder.domain.model.AppLockSettings
 import com.example.offlinereminder.domain.model.AppSettings
 import com.example.offlinereminder.domain.model.DateFormatPreference
 import com.example.offlinereminder.domain.model.Priority
@@ -46,6 +47,9 @@ class DataStoreSettingsRepository(
         private val KEY_QUIET_HOURS_END = stringPreferencesKey("quiet_hours_end")
         private val KEY_QUIET_HOURS_POLICY = stringPreferencesKey("quiet_hours_policy")
         private val KEY_QUIET_HOURS_ALLOW_CRITICAL = booleanPreferencesKey("quiet_hours_allow_critical")
+        private val KEY_APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
+        private val KEY_APP_LOCK_TIMEOUT_MINUTES = intPreferencesKey("app_lock_timeout_minutes")
+        private val KEY_APP_LOCK_ON_BACKGROUND = booleanPreferencesKey("app_lock_on_background")
     }
 
     override fun getSettingsFlow(): Flow<AppSettings> {
@@ -89,6 +93,10 @@ class DataStoreSettingsRepository(
                 preferences[KEY_QUIET_HOURS_END] = updated.quietHours.endLocalTime.toString()
                 preferences[KEY_QUIET_HOURS_POLICY] = updated.quietHours.policy.name
                 preferences[KEY_QUIET_HOURS_ALLOW_CRITICAL] = updated.quietHours.allowCritical
+
+                preferences[KEY_APP_LOCK_ENABLED] = updated.appLock.isEnabled
+                preferences[KEY_APP_LOCK_TIMEOUT_MINUTES] = updated.appLock.timeoutMinutes
+                preferences[KEY_APP_LOCK_ON_BACKGROUND] = updated.appLock.lockOnBackground
             }
         }
         updatedSettings ?: getSettings()
@@ -160,6 +168,10 @@ class DataStoreSettingsRepository(
 
         val qhAllowCritical = preferences[KEY_QUIET_HOURS_ALLOW_CRITICAL] ?: true
 
+        val appLockEnabled = preferences[KEY_APP_LOCK_ENABLED] ?: false
+        val appLockTimeout = preferences[KEY_APP_LOCK_TIMEOUT_MINUTES] ?: 0
+        val appLockOnBg = preferences[KEY_APP_LOCK_ON_BACKGROUND] ?: true
+
         return AppSettings(
             themeMode = themeMode,
             use24HourFormat = use24Hour,
@@ -176,6 +188,11 @@ class DataStoreSettingsRepository(
                 endLocalTime = qhEnd,
                 policy = qhPolicy,
                 allowCritical = qhAllowCritical
+            ),
+            appLock = AppLockSettings(
+                isEnabled = appLockEnabled,
+                timeoutMinutes = appLockTimeout,
+                lockOnBackground = appLockOnBg
             )
         )
     }

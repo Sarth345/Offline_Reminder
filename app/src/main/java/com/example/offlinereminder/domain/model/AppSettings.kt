@@ -35,5 +35,6 @@ data class AppSettings(
     val defaultSnoozeDurationMinutes: Int = 10,
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
-    val quietHours: QuietHours = QuietHours()
+    val quietHours: QuietHours = QuietHours(),
+    val appLock: AppLockSettings = AppLockSettings()
 )

@@ -22,7 +22,7 @@ import com.example.offlinereminder.presentation.upcoming.UpcomingViewModel
  * from [AppContainer] to ViewModels.
  */
 class ViewModelFactory(
-    private val appContainer: AppContainer
+    val appContainer: AppContainer
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -106,7 +106,9 @@ class ViewModelFactory(
                     getEventTemplateUseCase = appContainer.getEventTemplateUseCase,
                     getNotificationProfilesUseCase = appContainer.getNotificationProfilesUseCase,
                     getCustomSoundsUseCase = appContainer.getCustomSoundsUseCase,
-                    detectEventConflictsUseCase = appContainer.detectEventConflictsUseCase
+                    detectEventConflictsUseCase = appContainer.detectEventConflictsUseCase,
+                    editRecurringSeriesUseCase = appContainer.editRecurringSeriesUseCase,
+                    getSavedLocationsUseCase = appContainer.getSavedLocationsUseCase
                 ) as T
             }
             modelClass.isAssignableFrom(UpcomingViewModel::class.java) -> {
@@ -234,6 +236,35 @@ class ViewModelFactory(
                     getCustomSoundsUseCase = appContainer.getCustomSoundsUseCase,
                     addCustomSoundUseCase = appContainer.addCustomSoundUseCase,
                     deleteCustomSoundUseCase = appContainer.deleteCustomSoundUseCase,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(com.example.offlinereminder.presentation.locations.SavedLocationsViewModel::class.java) -> {
+                com.example.offlinereminder.presentation.locations.SavedLocationsViewModel(
+                    getSavedLocationsUseCase = appContainer.getSavedLocationsUseCase,
+                    saveSavedLocationUseCase = appContainer.saveSavedLocationUseCase,
+                    deleteSavedLocationUseCase = appContainer.deleteSavedLocationUseCase,
+                    toggleSavedLocationFavoriteUseCase = appContainer.toggleSavedLocationFavoriteUseCase,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(com.example.offlinereminder.presentation.data.ExportViewModel::class.java) -> {
+                com.example.offlinereminder.presentation.data.ExportViewModel(
+                    exportEventsUseCase = appContainer.exportEventsUseCase,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(com.example.offlinereminder.presentation.data.IcsImportViewModel::class.java) -> {
+                com.example.offlinereminder.presentation.data.IcsImportViewModel(
+                    previewIcsImportUseCase = appContainer.previewIcsImportUseCase,
+                    confirmIcsImportUseCase = appContainer.confirmIcsImportUseCase,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(com.example.offlinereminder.presentation.statistics.StatisticsViewModel::class.java) -> {
+                com.example.offlinereminder.presentation.statistics.StatisticsViewModel(
+                    getStatisticsUseCase = appContainer.getStatisticsUseCase,
+                    getProductivityInsightsUseCase = appContainer.getProductivityInsightsUseCase,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }

@@ -20,6 +20,12 @@ sealed interface EventDateTime {
     val isAllDay: Boolean
 
     fun startLocalDateTime(defaultTime: LocalTime = LocalTime.MIDNIGHT): LocalDateTime
+    fun endLocalDateTime(defaultTime: LocalTime = LocalTime.MIDNIGHT): LocalDateTime? = when (this) {
+        is DateOnly -> null
+        is DateTime -> null
+        is DateRange -> endDate.atTime(defaultTime)
+        is DateTimeRange -> endDateTime
+    }
     fun startEpochMillis(zoneId: ZoneId = ZoneId.systemDefault()): Long
 
     /**
