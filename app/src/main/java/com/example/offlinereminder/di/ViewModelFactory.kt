@@ -30,6 +30,7 @@ class ViewModelFactory(
                     completeOccurrenceActionUseCase = appContainer.completeOccurrenceActionUseCase,
                     skipOccurrenceActionUseCase = appContainer.skipOccurrenceActionUseCase,
                     rescheduleOccurrenceActionUseCase = appContainer.rescheduleOccurrenceActionUseCase,
+                    toggleEventFavoriteUseCase = appContainer.toggleEventFavoriteUseCase,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }
@@ -87,6 +88,7 @@ class ViewModelFactory(
                     completeOccurrenceActionUseCase = appContainer.completeOccurrenceActionUseCase,
                     skipOccurrenceActionUseCase = appContainer.skipOccurrenceActionUseCase,
                     rescheduleOccurrenceActionUseCase = appContainer.rescheduleOccurrenceActionUseCase,
+                    timeProvider = appContainer.timeProvider,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }
@@ -147,6 +149,13 @@ class ViewModelFactory(
                     deleteEventTypeUseCase = appContainer.deleteEventTypeUseCase,
                     exportBackupUseCase = appContainer.exportBackupUseCase,
                     restoreBackupUseCase = appContainer.restoreBackupUseCase,
+                    dispatcherProvider = appContainer.dispatcherProvider
+                ) as T
+            }
+            modelClass.isAssignableFrom(com.example.offlinereminder.presentation.quickadd.QuickAddViewModel::class.java) -> {
+                com.example.offlinereminder.presentation.quickadd.QuickAddViewModel(
+                    parser = appContainer.quickAddParser,
+                    createEventFromQuickAddUseCase = appContainer.createEventFromQuickAddUseCase,
                     dispatcherProvider = appContainer.dispatcherProvider
                 ) as T
             }

@@ -4,6 +4,7 @@ import com.example.offlinereminder.core.time.TimeProvider
 import com.example.offlinereminder.domain.model.DashboardOccurrences
 import com.example.offlinereminder.domain.model.EventOccurrenceWithEvent
 import com.example.offlinereminder.domain.model.OccurrenceStatus
+import com.example.offlinereminder.domain.model.Priority
 import com.example.offlinereminder.domain.recurrence.DefaultRecurrenceEngine
 import com.example.offlinereminder.domain.recurrence.RecurrenceEngine
 import com.example.offlinereminder.domain.repository.EventRepository
@@ -14,10 +15,13 @@ import kotlinx.coroutines.flow.map
 /**
  * Domain use case to project occurrences for the Smart Dashboard / Today View.
  * Bounded on-demand recurrence calculation:
- * - Overdue: occurrences before now that remain pending.
- * - Today: occurrences scheduled for today.
- * - Tomorrow: occurrences scheduled for tomorrow.
- * - Upcoming: occurrences beyond tomorrow within the horizon.
+ * - Overdue: pending/overdue occurrences before now.
+ * - Today: actionable pending occurrences scheduled for today.
+ * - Tomorrow: actionable occurrences scheduled for tomorrow.
+ * - Upcoming: actionable occurrences beyond tomorrow within the horizon.
+ * - Completed-Today: occurrences completed today.
+ * - Favorites: actionable favorite occurrences.
+ * - High-Priority: actionable high/critical priority occurrences.
  */
 class GetDashboardOccurrencesUseCase(
     private val eventRepository: EventRepository,
@@ -52,34 +56,75 @@ class GetDashboardOccurrencesUseCase(
             }
         }
 
-        val overdue = allItems.filter {
-            it.occurrence.status == OccurrenceStatus.OVERDUE ||
-                (it.occurrence.status == OccurrenceStatus.PENDING && it.occurrence.effectiveStartDateTime.isBefore(nowLdt))
+        // Completed Today: occurrences completed today (either completedAt is today, or scheduled for today and completed)
+        val completedToday = allItems.filter { item ->
+            item.occurrence.status == OccurrenceStatus.COMPLETED &&
+                if (item.occurrence.completedAt != null) {
+                    item.occurrence.completedAt.atZone(timeProvider.systemZoneId()).toLocalDate() == today
+                } else {
+                    item.occurrence.effectiveStartDateTime.toLocalDate() == today
+                }
+        }.sortedByDescending { it.occurrence.effectiveStartDateTime }
+
+        // Overdue: actionable items strictly before now or marked OVERDUE
+        val overdue = allItems.filter { item ->
+            item.occurrence.status != OccurrenceStatus.COMPLETED &&
+                item.occurrence.status != OccurrenceStatus.SKIPPED &&
+                item.occurrence.status != OccurrenceStatus.EXCLUDED &&
+                (
+                    item.occurrence.status == OccurrenceStatus.OVERDUE ||
+                        (item.occurrence.status == OccurrenceStatus.PENDING && item.occurrence.effectiveStartDateTime.isBefore(nowLdt))
+                )
         }.sortedBy { it.occurrence.effectiveStartDateTime }
 
-        val todayItems = allItems.filter {
-            it.occurrence.effectiveStartDateTime.toLocalDate() == today &&
-                it.occurrence.status != OccurrenceStatus.OVERDUE &&
-                it.occurrence.status != OccurrenceStatus.EXCLUDED
+        // Today: actionable items for today that are not overdue
+        val todayItems = allItems.filter { item ->
+            item.occurrence.effectiveStartDateTime.toLocalDate() == today &&
+                item.occurrence.status != OccurrenceStatus.OVERDUE &&
+                item.occurrence.status != OccurrenceStatus.EXCLUDED &&
+                item.occurrence.status != OccurrenceStatus.COMPLETED &&
+                item.occurrence.status != OccurrenceStatus.SKIPPED &&
+                !item.occurrence.effectiveStartDateTime.isBefore(nowLdt)
         }.sortedBy { it.occurrence.effectiveStartDateTime }
 
-        val tomorrowItems = allItems.filter {
-            it.occurrence.effectiveStartDateTime.toLocalDate() == tomorrow &&
-                it.occurrence.status != OccurrenceStatus.OVERDUE &&
-                it.occurrence.status != OccurrenceStatus.EXCLUDED
+        // Tomorrow: actionable items for tomorrow
+        val tomorrowItems = allItems.filter { item ->
+            item.occurrence.effectiveStartDateTime.toLocalDate() == tomorrow &&
+                item.occurrence.status != OccurrenceStatus.OVERDUE &&
+                item.occurrence.status != OccurrenceStatus.EXCLUDED &&
+                item.occurrence.status != OccurrenceStatus.COMPLETED &&
+                item.occurrence.status != OccurrenceStatus.SKIPPED
         }.sortedBy { it.occurrence.effectiveStartDateTime }
 
-        val upcomingItems = allItems.filter {
-            it.occurrence.effectiveStartDateTime.toLocalDate().isAfter(tomorrow) &&
-                it.occurrence.status != OccurrenceStatus.OVERDUE &&
-                it.occurrence.status != OccurrenceStatus.EXCLUDED
+        // Upcoming: actionable items beyond tomorrow
+        val upcomingItems = allItems.filter { item ->
+            item.occurrence.effectiveStartDateTime.toLocalDate().isAfter(tomorrow) &&
+                item.occurrence.status != OccurrenceStatus.OVERDUE &&
+                item.occurrence.status != OccurrenceStatus.EXCLUDED &&
+                item.occurrence.status != OccurrenceStatus.COMPLETED &&
+                item.occurrence.status != OccurrenceStatus.SKIPPED
         }.sortedBy { it.occurrence.effectiveStartDateTime }
+
+        // Favorites: actionable occurrences of favorite events
+        val favoriteItems = (overdue + todayItems + tomorrowItems + upcomingItems)
+            .filter { it.event.isFavorite }
+            .distinctBy { it.occurrence.occurrenceId }
+            .sortedBy { it.occurrence.effectiveStartDateTime }
+
+        // High Priority: actionable high or critical priority occurrences from overdue and today
+        val highPriorityItems = (overdue + todayItems)
+            .filter { it.event.priority == Priority.HIGH || it.event.priority == Priority.CRITICAL }
+            .distinctBy { it.occurrence.occurrenceId }
+            .sortedBy { it.occurrence.effectiveStartDateTime }
 
         DashboardOccurrences(
             overdue = overdue,
             today = todayItems,
             tomorrow = tomorrowItems,
-            upcoming = upcomingItems
+            upcoming = upcomingItems,
+            completedToday = completedToday,
+            favorites = favoriteItems,
+            highPriority = highPriorityItems
         )
     }
 }

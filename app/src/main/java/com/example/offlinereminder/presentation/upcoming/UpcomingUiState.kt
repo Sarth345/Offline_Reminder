@@ -8,6 +8,10 @@ import java.time.LocalDate
  */
 data class UpcomingUiState(
     val isLoading: Boolean = false,
+    val selectedDate: LocalDate = LocalDate.now(),
+    val horizonDays: Long = 14,
+    val includeCompleted: Boolean = true,
+    val includeOverdue: Boolean = true,
     val occurrences: List<EventOccurrenceWithEvent> = emptyList(),
     val occurrencesByDate: Map<LocalDate, List<EventOccurrenceWithEvent>> = emptyMap(),
     val errorMessage: String? = null

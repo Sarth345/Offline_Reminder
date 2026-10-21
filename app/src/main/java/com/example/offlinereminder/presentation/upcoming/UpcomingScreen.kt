@@ -1,5 +1,6 @@
 package com.example.offlinereminder.presentation.upcoming
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -7,16 +8,24 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -100,7 +109,7 @@ fun UpcomingContent(
                         )
                         if (uiState.occurrences.isNotEmpty()) {
                             Text(
-                                text = "${uiState.occurrences.size} occurrences in next 14 days",
+                                text = "${uiState.occurrences.size} occurrences in next ${uiState.horizonDays} days",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -118,6 +127,19 @@ fun UpcomingContent(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // Navigation & Filter Bar
+            AgendaNavigationToolbar(
+                selectedDate = uiState.selectedDate,
+                horizonDays = uiState.horizonDays,
+                includeCompleted = uiState.includeCompleted,
+                includeOverdue = uiState.includeOverdue,
+                onNavigateDays = { onAction(UpcomingAction.NavigateDays(it)) },
+                onJumpToToday = { onAction(UpcomingAction.JumpToToday) },
+                onChangeHorizon = { onAction(UpcomingAction.ChangeHorizon(it)) },
+                onToggleIncludeCompleted = { onAction(UpcomingAction.ToggleIncludeCompleted) },
+                onToggleIncludeOverdue = { onAction(UpcomingAction.ToggleIncludeOverdue) }
+            )
+
             if (uiState.errorMessage != null) {
                 ErrorBanner(
                     message = uiState.errorMessage,
@@ -127,12 +149,12 @@ fun UpcomingContent(
 
             when {
                 uiState.isLoading && uiState.isEmpty -> {
-                    LoadingView(message = "Loading upcoming agenda...")
+                    LoadingView(message = "Loading timeline...")
                 }
                 uiState.isEmpty -> {
                     EmptyStateView(
-                        title = "No upcoming reminders",
-                        message = "There are no reminders scheduled for the next 14 days.",
+                        title = "No timeline events found",
+                        message = "No reminders scheduled for this period. Try navigating or tap '+' to create a reminder.",
                         actionLabel = "Add Reminder",
                         onAction = onNavigateToAddEvent
                     )
@@ -142,7 +164,7 @@ fun UpcomingContent(
                         modifier = Modifier
                             .fillMaxSize()
                             .semantics { contentDescription = "Upcoming occurrences list" },
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         uiState.occurrencesByDate.forEach { (date, occurrences) ->
@@ -152,10 +174,11 @@ fun UpcomingContent(
 
                             items(
                                 items = occurrences,
-                                key = { it.occurrence.occurrenceId }
+                                key = { "${date}_${it.occurrence.occurrenceId}" }
                             ) { item ->
                                 OccurrenceCard(
                                     occurrenceWithEvent = item,
+                                    isOverdue = item.occurrence.isOverdue,
                                     onClick = { onNavigateToDetails(item.event.id) },
                                     onComplete = { onAction(UpcomingAction.CompleteOccurrence(item.occurrence)) },
                                     onSkip = { onAction(UpcomingAction.SkipOccurrence(item.occurrence)) },
@@ -166,6 +189,97 @@ fun UpcomingContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AgendaNavigationToolbar(
+    selectedDate: LocalDate,
+    horizonDays: Long,
+    includeCompleted: Boolean,
+    includeOverdue: Boolean,
+    onNavigateDays: (Long) -> Unit,
+    onJumpToToday: () -> Unit,
+    onChangeHorizon: (Long) -> Unit,
+    onToggleIncludeCompleted: () -> Unit,
+    onToggleIncludeOverdue: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        // Date stepping row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(
+                onClick = { onNavigateDays(-7) },
+                modifier = Modifier.semantics { contentDescription = "Previous week" }
+            ) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+            }
+
+            OutlinedButton(
+                onClick = onJumpToToday,
+                modifier = Modifier.semantics { contentDescription = "Jump to today" }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Today,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = "Today", style = MaterialTheme.typography.labelMedium)
+            }
+
+            IconButton(
+                onClick = { onNavigateDays(7) },
+                modifier = Modifier.semantics { contentDescription = "Next week" }
+            ) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Filter chips row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterChip(
+                selected = horizonDays == 7L,
+                onClick = { onChangeHorizon(7L) },
+                label = { Text("7 Days") }
+            )
+            FilterChip(
+                selected = horizonDays == 14L,
+                onClick = { onChangeHorizon(14L) },
+                label = { Text("14 Days") }
+            )
+            FilterChip(
+                selected = horizonDays == 30L,
+                onClick = { onChangeHorizon(30L) },
+                label = { Text("30 Days") }
+            )
+            FilterChip(
+                selected = includeCompleted,
+                onClick = onToggleIncludeCompleted,
+                label = { Text("Show Completed") }
+            )
+            FilterChip(
+                selected = includeOverdue,
+                onClick = onToggleIncludeOverdue,
+                label = { Text("Show Overdue") }
+            )
         }
     }
 }

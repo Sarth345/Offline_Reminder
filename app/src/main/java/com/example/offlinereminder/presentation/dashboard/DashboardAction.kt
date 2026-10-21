@@ -18,5 +18,6 @@ sealed interface DashboardAction {
         val newStartDateTime: LocalDateTime,
         val newEndDateTime: LocalDateTime? = null
     ) : DashboardAction
+    data class ToggleFavorite(val eventId: String) : DashboardAction
     data object ClearError : DashboardAction
 }

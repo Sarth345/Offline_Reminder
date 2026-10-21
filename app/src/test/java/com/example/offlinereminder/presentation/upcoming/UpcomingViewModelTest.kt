@@ -21,7 +21,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.Instant
@@ -85,6 +87,7 @@ class UpcomingViewModelTest {
         getUpcomingOccurrencesUseCase = getUpcomingOccurrencesUseCase,
         completeOccurrenceActionUseCase = completeOccurrenceActionUseCase,
         skipOccurrenceActionUseCase = skipOccurrenceActionUseCase,
+        timeProvider = timeProvider,
         dispatcherProvider = dispatcherProvider
     )
 
@@ -152,5 +155,139 @@ class UpcomingViewModelTest {
 
         val exception = occurrenceExceptionRepository.getExceptionByOccurrenceId(occ.occurrenceId)
         assertEquals(OccurrenceStatus.COMPLETED, exception?.status)
+    }
+
+    @Test
+    fun multiDayEvent_spansAcrossDatesInGroupedView_withoutDuplicateOccurrences() = runTest(testDispatcher) {
+        // Multi-day event: Start 2026-10-21 22:00, End 2026-10-23 10:00
+        val multiDay = Event(
+            id = "e_multi",
+            title = "Weekend Conference",
+            eventTypeId = "t1",
+            categoryId = "c1",
+            lifecycleStatus = EventLifecycleStatus.ACTIVE,
+            temporal = EventDateTime.DateTimeRange(
+                startDateTime = LocalDateTime.of(2026, 10, 21, 22, 0),
+                endDateTime = LocalDateTime.of(2026, 10, 23, 10, 0),
+                zoneId = utcZone
+            ),
+            createdAt = timeProvider.nowInstant(),
+            updatedAt = timeProvider.nowInstant()
+        )
+        eventRepository.saveEvent(multiDay)
+
+        val viewModel = createViewModel()
+        viewModel.onAction(UpcomingAction.SelectDate(LocalDate.of(2026, 10, 21)))
+        testScheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        // 1. Exactly ONE occurrence object exists in the main occurrences list
+        assertEquals(1, state.occurrences.size)
+        assertTrue(state.occurrences.first().occurrence.isMultiDay)
+
+        // 2. The event appears under Oct 21, Oct 22, and Oct 23 in the grouped map
+        val day21 = state.occurrencesByDate[LocalDate.of(2026, 10, 21)]
+        val day22 = state.occurrencesByDate[LocalDate.of(2026, 10, 22)]
+        val day23 = state.occurrencesByDate[LocalDate.of(2026, 10, 23)]
+        val day24 = state.occurrencesByDate[LocalDate.of(2026, 10, 24)]
+
+        assertNotNull(day21)
+        assertEquals("e_multi", day21?.first()?.event?.id)
+
+        assertNotNull(day22)
+        assertEquals("e_multi", day22?.first()?.event?.id)
+
+        assertNotNull(day23)
+        assertEquals("e_multi", day23?.first()?.event?.id)
+
+        assertNull("Event ended on Oct 23, should not appear on Oct 24", day24)
+    }
+
+    @Test
+    fun dateNavigation_andControls_updateAgendaProjectionAndState() = runTest(testDispatcher) {
+        val today = LocalDate.of(2026, 10, 20) // from timeProvider
+        val day21 = today.plusDays(1)
+        val day22 = today.plusDays(2)
+
+        val eToday = Event(
+            id = "e_today",
+            title = "Today Event",
+            eventTypeId = "t1",
+            categoryId = "c1",
+            lifecycleStatus = EventLifecycleStatus.ACTIVE,
+            temporal = EventDateTime.DateTime(LocalDateTime.of(2026, 10, 20, 14, 0), utcZone),
+            createdAt = timeProvider.nowInstant(),
+            updatedAt = timeProvider.nowInstant()
+        )
+        val e21 = Event(
+            id = "e_21",
+            title = "Tomorrow Event",
+            eventTypeId = "t1",
+            categoryId = "c1",
+            lifecycleStatus = EventLifecycleStatus.ACTIVE,
+            temporal = EventDateTime.DateTime(LocalDateTime.of(2026, 10, 21, 10, 0), utcZone),
+            createdAt = timeProvider.nowInstant(),
+            updatedAt = timeProvider.nowInstant()
+        )
+        val e22 = Event(
+            id = "e_22",
+            title = "Day After Tomorrow Event",
+            eventTypeId = "t1",
+            categoryId = "c1",
+            lifecycleStatus = EventLifecycleStatus.ACTIVE,
+            temporal = EventDateTime.DateTime(LocalDateTime.of(2026, 10, 22, 16, 0), utcZone),
+            createdAt = timeProvider.nowInstant(),
+            updatedAt = timeProvider.nowInstant()
+        )
+
+        eventRepository.saveEvent(eToday)
+        eventRepository.saveEvent(e21)
+        eventRepository.saveEvent(e22)
+
+        val viewModel = createViewModel()
+        testScheduler.advanceUntilIdle()
+
+        // Initially at today: all 3 events are in the horizon
+        assertEquals(3, viewModel.uiState.value.occurrences.size)
+        assertEquals(today, viewModel.uiState.value.selectedDate)
+
+        // 1. SelectDate: move to day 21 (anchor shifts forward)
+        viewModel.onAction(UpcomingAction.SelectDate(day21))
+        testScheduler.advanceUntilIdle()
+        assertEquals(day21, viewModel.uiState.value.selectedDate)
+        assertEquals(2, viewModel.uiState.value.occurrences.size)
+        assertTrue(viewModel.uiState.value.occurrences.none { it.event.id == "e_today" })
+
+        // 2. NavigateDays: +1 day moves anchor to day 22
+        viewModel.onAction(UpcomingAction.NavigateDays(1))
+        testScheduler.advanceUntilIdle()
+        assertEquals(day22, viewModel.uiState.value.selectedDate)
+        assertEquals(1, viewModel.uiState.value.occurrences.size)
+        assertEquals("e_22", viewModel.uiState.value.occurrences.first().event.id)
+
+        // 3. JumpToToday: resets anchor back to today (2026-10-20)
+        viewModel.onAction(UpcomingAction.JumpToToday)
+        testScheduler.advanceUntilIdle()
+        assertEquals(today, viewModel.uiState.value.selectedDate)
+        assertEquals(3, viewModel.uiState.value.occurrences.size)
+
+        // 4. Horizon Control: change to 1 day
+        viewModel.onAction(UpcomingAction.ChangeHorizon(1))
+        testScheduler.advanceUntilIdle()
+        assertEquals(1L, viewModel.uiState.value.horizonDays)
+        // Only today and day 21 within 1 day
+        assertTrue(viewModel.uiState.value.occurrences.none { it.event.id == "e_22" })
+
+        // 5. Toggles: includeCompleted & includeOverdue
+        assertTrue(viewModel.uiState.value.includeCompleted)
+        assertTrue(viewModel.uiState.value.includeOverdue)
+
+        viewModel.onAction(UpcomingAction.ToggleIncludeCompleted)
+        testScheduler.advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.includeCompleted)
+
+        viewModel.onAction(UpcomingAction.ToggleIncludeOverdue)
+        testScheduler.advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.includeOverdue)
     }
 }

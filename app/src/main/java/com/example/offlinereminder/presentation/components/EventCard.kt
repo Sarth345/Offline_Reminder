@@ -35,11 +35,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.offlinereminder.domain.model.Event
 import com.example.offlinereminder.domain.model.EventOccurrenceWithEvent
 import com.example.offlinereminder.domain.model.OccurrenceStatus
+import java.time.ZoneId
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -224,6 +226,7 @@ fun OccurrenceCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (occurrence.isCompleted || occurrence.isSkipped) TextDecoration.LineThrough else null,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -232,8 +235,16 @@ fun OccurrenceCard(
                 if (occurrence.status != OccurrenceStatus.PENDING) {
                     ChipBadge(
                         text = occurrence.status.name,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        textColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        containerColor = if (occurrence.isCompleted) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.tertiaryContainer
+                        },
+                        textColor = if (occurrence.isCompleted) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        }
                     )
                 }
             }
@@ -281,10 +292,43 @@ fun OccurrenceCard(
             ) {
                 PriorityBadge(priority = event.priority)
                 StatusBadge(status = event.lifecycleStatus)
+
+                if (event.isRecurring) {
+                    ChipBadge(
+                        text = "Recurring",
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        textColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+
+                if (event.temporal.isAllDay) {
+                    ChipBadge(
+                        text = "All-day",
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        textColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (occurrence.isMultiDay) {
+                    ChipBadge(
+                        text = "Multi-day",
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        textColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+
+                if (occurrence.effectiveZoneId != ZoneId.systemDefault()) {
+                    ChipBadge(
+                        text = occurrence.effectiveZoneId.id,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        textColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
-            // Quick Actions: Complete, Reschedule, Skip
-            if (onComplete != null || onReschedule != null || onSkip != null) {
+            // Quick Actions: Complete, Reschedule, Skip (only if not already completed or skipped)
+            val isActionable = !occurrence.isCompleted && !occurrence.isSkipped
+            if (isActionable && (onComplete != null || onReschedule != null || onSkip != null)) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

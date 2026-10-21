@@ -51,6 +51,9 @@ data class EventOccurrence(
     val isSkipped: Boolean get() = status == OccurrenceStatus.SKIPPED
     val isRescheduled: Boolean get() = status == OccurrenceStatus.RESCHEDULED
     val isOverdue: Boolean get() = status == OccurrenceStatus.OVERDUE
+    val isMultiDay: Boolean
+        get() = effectiveEndDateTime != null &&
+            effectiveEndDateTime!!.toLocalDate().isAfter(effectiveStartDateTime.toLocalDate())
 
     companion object {
         fun createOccurrenceId(

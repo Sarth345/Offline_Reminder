@@ -583,4 +583,19 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val getEventRelationshipsUseCase: com.example.offlinereminder.domain.usecase.GetEventRelationshipsUseCase by lazy {
         com.example.offlinereminder.domain.usecase.GetEventRelationshipsUseCase(eventRepository)
     }
+
+    override val quickAddParser: com.example.offlinereminder.domain.quickadd.QuickAddParser by lazy {
+        com.example.offlinereminder.domain.quickadd.QuickAddParser(timeProvider)
+    }
+
+    override val createEventFromQuickAddUseCase: com.example.offlinereminder.domain.quickadd.CreateEventFromQuickAddUseCase by lazy {
+        com.example.offlinereminder.domain.quickadd.CreateEventFromQuickAddUseCase(
+            createEventUseCase = createEventUseCase,
+            categoryRepository = categoryRepository,
+            eventTypeRepository = eventTypeRepository,
+            eventGroupRepository = eventGroupRepository,
+            tagRepository = tagRepository,
+            timeProvider = timeProvider
+        )
+    }
 }

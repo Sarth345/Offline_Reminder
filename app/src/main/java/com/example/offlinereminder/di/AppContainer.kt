@@ -155,4 +155,8 @@ interface AppContainer {
     val addEventRelationshipUseCase: com.example.offlinereminder.domain.usecase.AddEventRelationshipUseCase
     val removeEventRelationshipUseCase: com.example.offlinereminder.domain.usecase.RemoveEventRelationshipUseCase
     val getEventRelationshipsUseCase: com.example.offlinereminder.domain.usecase.GetEventRelationshipsUseCase
+
+    // Phase 13 Quick Add
+    val quickAddParser: com.example.offlinereminder.domain.quickadd.QuickAddParser
+    val createEventFromQuickAddUseCase: com.example.offlinereminder.domain.quickadd.CreateEventFromQuickAddUseCase
 }

@@ -10,6 +10,7 @@ import com.example.offlinereminder.domain.usecase.CompleteOccurrenceActionUseCas
 import com.example.offlinereminder.domain.usecase.GetDashboardOccurrencesUseCase
 import com.example.offlinereminder.domain.usecase.RescheduleOccurrenceActionUseCase
 import com.example.offlinereminder.domain.usecase.SkipOccurrenceActionUseCase
+import com.example.offlinereminder.domain.usecase.ToggleEventFavoriteUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +27,7 @@ class DashboardViewModel(
     private val completeOccurrenceActionUseCase: CompleteOccurrenceActionUseCase,
     private val skipOccurrenceActionUseCase: SkipOccurrenceActionUseCase,
     private val rescheduleOccurrenceActionUseCase: RescheduleOccurrenceActionUseCase,
+    private val toggleEventFavoriteUseCase: ToggleEventFavoriteUseCase? = null,
     private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider()
 ) : ViewModel() {
 
@@ -42,6 +44,7 @@ class DashboardViewModel(
             is DashboardAction.CompleteOccurrence -> completeOccurrence(action.occurrence, action.actualExecutionDateTime)
             is DashboardAction.SkipOccurrence -> skipOccurrence(action.occurrence)
             is DashboardAction.RescheduleOccurrence -> rescheduleOccurrence(action.occurrence, action.newStartDateTime, action.newEndDateTime)
+            is DashboardAction.ToggleFavorite -> toggleFavorite(action.eventId)
             is DashboardAction.ClearError -> _uiState.update { it.copy(errorMessage = null) }
         }
     }
@@ -66,6 +69,9 @@ class DashboardViewModel(
                             overdueOccurrences = dashboard.overdue,
                             tomorrowOccurrences = dashboard.tomorrow,
                             upcomingOccurrences = dashboard.upcoming,
+                            completedTodayOccurrences = dashboard.completedToday,
+                            favoriteOccurrences = dashboard.favorites,
+                            highPriorityOccurrences = dashboard.highPriority,
                             errorMessage = null
                         )
                     }
@@ -109,6 +115,18 @@ class DashboardViewModel(
             if (result is Result.Failure) {
                 _uiState.update {
                     it.copy(errorMessage = result.error.message ?: "Failed to reschedule occurrence")
+                }
+            }
+        }
+    }
+
+    private fun toggleFavorite(eventId: String) {
+        if (toggleEventFavoriteUseCase == null) return
+        viewModelScope.launch(dispatcherProvider.main) {
+            val result = toggleEventFavoriteUseCase.invoke(eventId)
+            if (result is Result.Failure) {
+                _uiState.update {
+                    it.copy(errorMessage = result.error.message ?: "Failed to update favorite")
                 }
             }
         }
