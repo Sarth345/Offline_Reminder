@@ -374,6 +374,17 @@ private class FakeEventRepository : EventRepository {
     override suspend fun setFavorite(id: String, isFavorite: Boolean): Result<Unit> = Result.Success(Unit)
     override suspend fun countEventsByCategory(categoryId: String): Int = events.value.count { it.categoryId == categoryId }
     override suspend fun countEventsByEventType(eventTypeId: String): Int = events.value.count { it.eventTypeId == eventTypeId }
+    override suspend fun archiveEvent(id: String): Result<Unit> = Result.Success(Unit)
+    override suspend fun restoreFromArchive(id: String): Result<Unit> = Result.Success(Unit)
+    override suspend fun emptyTrash(): Result<Int> = Result.Success(0)
+    override suspend fun purgeExpiredTrash(cutoff: java.time.Instant): Result<Int> = Result.Success(0)
+    override suspend fun addDependency(dependency: com.example.offlinereminder.domain.model.EventDependency): Result<Unit> = Result.Success(Unit)
+    override suspend fun removeDependency(sourceEventId: String, targetEventId: String): Result<Unit> = Result.Success(Unit)
+    override fun getDependenciesForEvent(eventId: String): Flow<List<com.example.offlinereminder.domain.model.EventDependency>> = flowOf(emptyList())
+    override fun getDependentsOfEvent(eventId: String): Flow<List<com.example.offlinereminder.domain.model.EventDependency>> = flowOf(emptyList())
+    override suspend fun addRelationship(relationship: com.example.offlinereminder.domain.model.EventRelationship): Result<Unit> = Result.Success(Unit)
+    override suspend fun removeRelationship(sourceEventId: String, targetEventId: String): Result<Unit> = Result.Success(Unit)
+    override fun getRelationshipsForEvent(eventId: String): Flow<List<com.example.offlinereminder.domain.model.EventRelationship>> = flowOf(emptyList())
 }
 
 private class FakeBackupRepository : BackupRepository {

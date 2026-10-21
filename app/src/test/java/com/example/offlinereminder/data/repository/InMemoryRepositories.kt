@@ -2,22 +2,31 @@ package com.example.offlinereminder.data.repository
 
 import com.example.offlinereminder.core.result.Result
 import com.example.offlinereminder.domain.model.Category
+import com.example.offlinereminder.domain.model.CustomSoundMetadata
 import com.example.offlinereminder.domain.model.Event
+import com.example.offlinereminder.domain.model.EventDependency
 import com.example.offlinereminder.domain.model.EventGroup
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
+import com.example.offlinereminder.domain.model.EventRelationship
+import com.example.offlinereminder.domain.model.EventTemplate
 import com.example.offlinereminder.domain.model.EventType
+import com.example.offlinereminder.domain.model.NotificationProfile
 import com.example.offlinereminder.domain.model.OccurrenceException
 import com.example.offlinereminder.domain.model.Tag
 import com.example.offlinereminder.domain.repository.CategoryRepository
+import com.example.offlinereminder.domain.repository.CustomSoundRepository
 import com.example.offlinereminder.domain.repository.EventGroupRepository
 import com.example.offlinereminder.domain.repository.EventRepository
+import com.example.offlinereminder.domain.repository.EventTemplateRepository
 import com.example.offlinereminder.domain.repository.EventTypeRepository
+import com.example.offlinereminder.domain.repository.NotificationProfileRepository
 import com.example.offlinereminder.domain.repository.OccurrenceExceptionRepository
 import com.example.offlinereminder.domain.repository.TagRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -98,6 +107,74 @@ class InMemoryEventRepository : EventRepository {
 
     override suspend fun countEventsByEventType(eventTypeId: String): Int =
         events.value.values.count { it.eventTypeId == eventTypeId }
+
+    override suspend fun archiveEvent(id: String): Result<Unit> = Result.runCatching {
+        val event = events.value[id] ?: return@runCatching
+        saveEvent(event.copy(lifecycleStatus = EventLifecycleStatus.ARCHIVED))
+    }
+
+    override suspend fun restoreFromArchive(id: String): Result<Unit> = Result.runCatching {
+        val event = events.value[id] ?: return@runCatching
+        saveEvent(event.copy(lifecycleStatus = EventLifecycleStatus.ACTIVE))
+    }
+
+    override suspend fun emptyTrash(): Result<Int> = Result.runCatching {
+        val trashed = events.value.values.filter { it.lifecycleStatus == EventLifecycleStatus.TRASHED }
+        val current = events.value.toMutableMap()
+        trashed.forEach { current.remove(it.id) }
+        events.value = current
+        trashed.size
+    }
+
+    override suspend fun purgeExpiredTrash(cutoff: Instant): Result<Int> = Result.runCatching {
+        val expired = events.value.values.filter { 
+            it.lifecycleStatus == EventLifecycleStatus.TRASHED && it.deletedAt != null && !it.deletedAt.isAfter(cutoff)
+        }
+        val current = events.value.toMutableMap()
+        expired.forEach { current.remove(it.id) }
+        events.value = current
+        expired.size
+    }
+
+    private val dependencies = MutableStateFlow<List<EventDependency>>(emptyList())
+    private val relationships = MutableStateFlow<List<EventRelationship>>(emptyList())
+
+    override suspend fun addDependency(dependency: EventDependency): Result<Unit> = Result.runCatching {
+        dependencies.value = dependencies.value.filterNot { 
+            it.sourceEventId == dependency.sourceEventId && it.targetEventId == dependency.targetEventId 
+        } + dependency
+    }
+
+    override suspend fun removeDependency(sourceEventId: String, targetEventId: String): Result<Unit> = Result.runCatching {
+        dependencies.value = dependencies.value.filterNot { 
+            it.sourceEventId == sourceEventId && it.targetEventId == targetEventId 
+        }
+    }
+
+    override fun getDependenciesForEvent(eventId: String): Flow<List<EventDependency>> =
+        dependencies.map { list -> list.filter { it.sourceEventId == eventId } }
+
+    override fun getDependentsOfEvent(eventId: String): Flow<List<EventDependency>> =
+        dependencies.map { list -> list.filter { it.targetEventId == eventId } }
+
+    override suspend fun addRelationship(relationship: EventRelationship): Result<Unit> = Result.runCatching {
+        relationships.value = relationships.value.filterNot {
+            (it.sourceEventId == relationship.sourceEventId && it.targetEventId == relationship.targetEventId) ||
+            (it.sourceEventId == relationship.targetEventId && it.targetEventId == relationship.sourceEventId)
+        } + relationship
+    }
+
+    override suspend fun removeRelationship(sourceEventId: String, targetEventId: String): Result<Unit> = Result.runCatching {
+        relationships.value = relationships.value.filterNot {
+            (it.sourceEventId == sourceEventId && it.targetEventId == targetEventId) ||
+            (it.sourceEventId == targetEventId && it.targetEventId == sourceEventId)
+        }
+    }
+
+    override fun getRelationshipsForEvent(eventId: String): Flow<List<EventRelationship>> =
+        relationships.map { list -> 
+            list.filter { it.sourceEventId == eventId || it.targetEventId == eventId }
+        }
 }
 
 /**
@@ -333,4 +410,98 @@ class InMemoryOccurrenceExceptionRepository : OccurrenceExceptionRepository {
         current.entries.removeIf { it.value.occurrenceId == occurrenceId }
         exceptions.value = current
     }
+}
+
+/**
+ * In-memory test double for [NotificationProfileRepository].
+ */
+class InMemoryNotificationProfileRepository : NotificationProfileRepository {
+    val profiles = MutableStateFlow<Map<String, NotificationProfile>>(emptyMap())
+
+    override fun getAllProfiles(): Flow<List<NotificationProfile>> =
+        profiles.map { it.values.toList() }
+
+    override suspend fun getProfileById(id: String): NotificationProfile? =
+        profiles.value[id]
+
+    override suspend fun getDefaultProfile(): NotificationProfile? =
+        profiles.value.values.firstOrNull { it.isDefault }
+
+    override suspend fun saveProfile(profile: NotificationProfile): Result<Unit> = Result.runCatching {
+        val current = profiles.value.toMutableMap()
+        if (profile.isDefault) {
+            current.replaceAll { _, p -> p.copy(isDefault = false) }
+        }
+        current[profile.id] = profile
+        profiles.value = current
+    }
+
+    override suspend fun deleteProfile(id: String): Result<Unit> = Result.runCatching {
+        val current = profiles.value.toMutableMap()
+        current.remove(id)
+        profiles.value = current
+    }
+
+    override suspend fun setDefaultProfile(id: String): Result<Unit> = Result.runCatching {
+        val current = profiles.value.mapValues { (key, profile) ->
+            profile.copy(isDefault = key == id)
+        }
+        profiles.value = current
+    }
+}
+
+/**
+ * In-memory test double for [CustomSoundRepository].
+ */
+class InMemoryCustomSoundRepository : CustomSoundRepository {
+    val sounds = MutableStateFlow<Map<String, CustomSoundMetadata>>(emptyMap())
+
+    override fun getAllSounds(): Flow<List<CustomSoundMetadata>> =
+        sounds.map { it.values.toList() }
+
+    override suspend fun getSoundById(id: String): CustomSoundMetadata? =
+        sounds.value[id]
+
+    override suspend fun saveSound(metadata: CustomSoundMetadata): Result<Unit> = Result.runCatching {
+        val current = sounds.value.toMutableMap()
+        current[metadata.id] = metadata
+        sounds.value = current
+    }
+
+    override suspend fun deleteSound(id: String): Result<Unit> = Result.runCatching {
+        val current = sounds.value.toMutableMap()
+        current.remove(id)
+        sounds.value = current
+    }
+}
+
+/**
+ * In-memory test double for [EventTemplateRepository].
+ */
+class InMemoryEventTemplateRepository : EventTemplateRepository {
+    val templates = MutableStateFlow<Map<String, EventTemplate>>(emptyMap())
+
+    override fun getAllTemplates(): Flow<List<EventTemplate>> =
+        templates.map { it.values.toList() }
+
+    override suspend fun getTemplateById(id: String): EventTemplate? =
+        templates.value[id]
+
+    override suspend fun saveTemplate(template: EventTemplate): Result<Unit> = Result.runCatching {
+        val current = templates.value.toMutableMap()
+        current[template.id] = template
+        templates.value = current
+    }
+
+    override suspend fun deleteTemplate(id: String): Result<Unit> = Result.runCatching {
+        val current = templates.value.toMutableMap()
+        current.remove(id)
+        templates.value = current
+    }
+
+    override suspend fun countTemplatesByCategory(categoryId: String): Int =
+        templates.value.values.count { it.categoryId == categoryId }
+
+    override suspend fun countTemplatesByEventType(eventTypeId: String): Int =
+        templates.value.values.count { it.eventTypeId == eventTypeId }
 }

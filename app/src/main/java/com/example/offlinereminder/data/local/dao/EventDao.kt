@@ -104,6 +104,18 @@ interface EventDao {
     @Query("UPDATE events SET lifecycle_status = 'ACTIVE', deleted_at = NULL, updated_at = :updatedAt WHERE id = :id")
     suspend fun restoreFromTrash(id: String, updatedAt: Instant)
 
+    @Query("UPDATE events SET lifecycle_status = 'ARCHIVED', updated_at = :updatedAt WHERE id = :id")
+    suspend fun archiveEvent(id: String, updatedAt: Instant)
+
+    @Query("UPDATE events SET lifecycle_status = 'ACTIVE', updated_at = :updatedAt WHERE id = :id AND lifecycle_status = 'ARCHIVED'")
+    suspend fun restoreFromArchive(id: String, updatedAt: Instant)
+
+    @Query("DELETE FROM events WHERE lifecycle_status = 'TRASHED'")
+    suspend fun emptyTrash(): Int
+
+    @Query("DELETE FROM events WHERE lifecycle_status = 'TRASHED' AND deleted_at IS NOT NULL AND deleted_at <= :cutoff")
+    suspend fun purgeExpiredTrash(cutoff: Instant): Int
+
     @Query("UPDATE events SET is_favorite = :isFavorite, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateFavorite(id: String, isFavorite: Boolean, updatedAt: Instant)
 

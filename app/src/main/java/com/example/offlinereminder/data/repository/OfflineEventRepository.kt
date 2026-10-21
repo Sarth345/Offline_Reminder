@@ -127,29 +127,47 @@ class OfflineEventRepository(
         eventDao.updateFavorite(id, isFavorite, now)
     }
 
+    override suspend fun archiveEvent(id: String): Result<Unit> = Result.runCatching {
+        val now = timeProvider.nowInstant()
+        eventDao.archiveEvent(id, now)
+    }
+
+    override suspend fun restoreFromArchive(id: String): Result<Unit> = Result.runCatching {
+        val now = timeProvider.nowInstant()
+        eventDao.restoreFromArchive(id, now)
+    }
+
+    override suspend fun emptyTrash(): Result<Int> = Result.runCatching {
+        eventDao.emptyTrash()
+    }
+
+    override suspend fun purgeExpiredTrash(cutoff: java.time.Instant): Result<Int> = Result.runCatching {
+        eventDao.purgeExpiredTrash(cutoff)
+    }
+
     // Direct dependencies and relationships persistence
-    suspend fun addDependency(dependency: EventDependency): Result<Unit> = Result.runCatching {
+    override suspend fun addDependency(dependency: EventDependency): Result<Unit> = Result.runCatching {
         dependencyDao.insert(dependency.toEntity())
     }
 
-    suspend fun removeDependency(sourceEventId: String, targetEventId: String): Result<Unit> = Result.runCatching {
+    override suspend fun removeDependency(sourceEventId: String, targetEventId: String): Result<Unit> = Result.runCatching {
         dependencyDao.deleteDependency(sourceEventId, targetEventId)
     }
 
-    fun getDependenciesForEvent(eventId: String): Flow<List<EventDependency>> =
+    override fun getDependenciesForEvent(eventId: String): Flow<List<EventDependency>> =
         dependencyDao.getDependenciesForSourceFlow(eventId).map { list -> list.map { it.toDomain() } }
 
-    fun getDependentsOfEvent(eventId: String): Flow<List<EventDependency>> =
+    override fun getDependentsOfEvent(eventId: String): Flow<List<EventDependency>> =
         dependencyDao.getDependentsForTargetFlow(eventId).map { list -> list.map { it.toDomain() } }
 
-    suspend fun addRelationship(relationship: EventRelationship): Result<Unit> = Result.runCatching {
+    override suspend fun addRelationship(relationship: EventRelationship): Result<Unit> = Result.runCatching {
         relationshipDao.insert(relationship.toEntity())
     }
 
-    suspend fun removeRelationship(sourceEventId: String, targetEventId: String): Result<Unit> = Result.runCatching {
+    override suspend fun removeRelationship(sourceEventId: String, targetEventId: String): Result<Unit> = Result.runCatching {
         relationshipDao.deleteRelationship(sourceEventId, targetEventId)
     }
 
-    fun getRelationshipsForEvent(eventId: String): Flow<List<EventRelationship>> =
+    override fun getRelationshipsForEvent(eventId: String): Flow<List<EventRelationship>> =
         relationshipDao.getRelationshipsForSourceFlow(eventId).map { list -> list.map { it.toDomain() } }
 }

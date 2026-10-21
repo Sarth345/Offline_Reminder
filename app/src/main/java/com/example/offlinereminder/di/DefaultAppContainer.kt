@@ -167,15 +167,15 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val trashEventUseCase: TrashEventUseCase by lazy {
-        TrashEventUseCase(timeProvider)
+        TrashEventUseCase(timeProvider, eventRepository)
     }
 
     override val restoreEventUseCase: RestoreEventUseCase by lazy {
-        RestoreEventUseCase(timeProvider)
+        RestoreEventUseCase(timeProvider, eventRepository)
     }
 
     override val archiveEventUseCase: ArchiveEventUseCase by lazy {
-        ArchiveEventUseCase(timeProvider)
+        ArchiveEventUseCase(timeProvider, eventRepository)
     }
 
     override val rebootRecoveryUseCase: RebootRecoveryUseCase by lazy {
@@ -409,5 +409,162 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             scheduleNotificationsForEventUseCase = scheduleNotificationsForEventUseCase,
             settingsRepository = settingsRepository
         )
+    }
+
+    override val createNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.CreateNotificationProfileUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.CreateNotificationProfileUseCase(notificationProfileRepository)
+    }
+
+    override val updateNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.UpdateNotificationProfileUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.UpdateNotificationProfileUseCase(notificationProfileRepository)
+    }
+
+    override val getNotificationProfilesUseCase: com.example.offlinereminder.domain.usecase.GetNotificationProfilesUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetNotificationProfilesUseCase(notificationProfileRepository)
+    }
+
+    override val getNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.GetNotificationProfileUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetNotificationProfileUseCase(notificationProfileRepository)
+    }
+
+    override val deleteNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.DeleteNotificationProfileUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DeleteNotificationProfileUseCase(notificationProfileRepository)
+    }
+
+    override val setDefaultNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.SetDefaultNotificationProfileUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.SetDefaultNotificationProfileUseCase(notificationProfileRepository)
+    }
+
+    override val addCustomSoundUseCase: com.example.offlinereminder.domain.usecase.AddCustomSoundUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.AddCustomSoundUseCase(customSoundRepository, timeProvider)
+    }
+
+    override val updateCustomSoundUseCase: com.example.offlinereminder.domain.usecase.UpdateCustomSoundUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.UpdateCustomSoundUseCase(customSoundRepository)
+    }
+
+    override val getCustomSoundsUseCase: com.example.offlinereminder.domain.usecase.GetCustomSoundsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetCustomSoundsUseCase(customSoundRepository)
+    }
+
+    override val getCustomSoundUseCase: com.example.offlinereminder.domain.usecase.GetCustomSoundUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetCustomSoundUseCase(customSoundRepository)
+    }
+
+    override val deleteCustomSoundUseCase: com.example.offlinereminder.domain.usecase.DeleteCustomSoundUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DeleteCustomSoundUseCase(customSoundRepository)
+    }
+
+    override val createEventTemplateUseCase: com.example.offlinereminder.domain.usecase.CreateEventTemplateUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.CreateEventTemplateUseCase(
+            templateRepository = eventTemplateRepository,
+            categoryRepository = categoryRepository,
+            eventTypeRepository = eventTypeRepository,
+            timeProvider = timeProvider
+        )
+    }
+
+    override val updateEventTemplateUseCase: com.example.offlinereminder.domain.usecase.UpdateEventTemplateUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.UpdateEventTemplateUseCase(
+            templateRepository = eventTemplateRepository,
+            categoryRepository = categoryRepository,
+            eventTypeRepository = eventTypeRepository,
+            timeProvider = timeProvider
+        )
+    }
+
+    override val getEventTemplatesUseCase: com.example.offlinereminder.domain.usecase.GetEventTemplatesUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetEventTemplatesUseCase(eventTemplateRepository)
+    }
+
+    override val getEventTemplateUseCase: com.example.offlinereminder.domain.usecase.GetEventTemplateUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetEventTemplateUseCase(eventTemplateRepository)
+    }
+
+    override val deleteEventTemplateUseCase: com.example.offlinereminder.domain.usecase.DeleteEventTemplateUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DeleteEventTemplateUseCase(eventTemplateRepository)
+    }
+
+    override val createEventFromTemplateUseCase: com.example.offlinereminder.domain.usecase.CreateEventFromTemplateUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.CreateEventFromTemplateUseCase(
+            templateRepository = eventTemplateRepository,
+            eventRepository = eventRepository,
+            categoryRepository = categoryRepository,
+            eventTypeRepository = eventTypeRepository,
+            timeProvider = timeProvider
+        )
+    }
+
+    override val setEventFavoriteUseCase: com.example.offlinereminder.domain.usecase.SetEventFavoriteUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.SetEventFavoriteUseCase(eventRepository)
+    }
+
+    override val toggleEventFavoriteUseCase: com.example.offlinereminder.domain.usecase.ToggleEventFavoriteUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.ToggleEventFavoriteUseCase(eventRepository)
+    }
+
+    override val getFavoriteEventsUseCase: com.example.offlinereminder.domain.usecase.GetFavoriteEventsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetFavoriteEventsUseCase(eventRepository)
+    }
+
+    override val restoreArchivedEventUseCase: com.example.offlinereminder.domain.usecase.RestoreArchivedEventUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.RestoreArchivedEventUseCase(eventRepository)
+    }
+
+    override val restoreTrashedEventUseCase: com.example.offlinereminder.domain.usecase.RestoreTrashedEventUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.RestoreTrashedEventUseCase(eventRepository)
+    }
+
+    override val permanentlyDeleteEventUseCase: com.example.offlinereminder.domain.usecase.PermanentlyDeleteEventUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.PermanentlyDeleteEventUseCase(eventRepository)
+    }
+
+    override val emptyTrashUseCase: com.example.offlinereminder.domain.usecase.EmptyTrashUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.EmptyTrashUseCase(eventRepository)
+    }
+
+    override val purgeExpiredTrashUseCase: com.example.offlinereminder.domain.usecase.PurgeExpiredTrashUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.PurgeExpiredTrashUseCase(eventRepository, timeProvider)
+    }
+
+    override val duplicateEventUseCase: com.example.offlinereminder.domain.usecase.DuplicateEventUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DuplicateEventUseCase(eventRepository, timeProvider)
+    }
+
+    override val detectEventConflictsUseCase: com.example.offlinereminder.domain.usecase.DetectEventConflictsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.DetectEventConflictsUseCase(
+            eventRepository = eventRepository,
+            recurrenceEngine = recurrenceEngine,
+            occurrenceExceptionRepository = occurrenceExceptionRepository,
+            timeProvider = timeProvider
+        )
+    }
+
+    override val addEventDependencyUseCase: com.example.offlinereminder.domain.usecase.AddEventDependencyUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.AddEventDependencyUseCase(eventRepository)
+    }
+
+    override val removeEventDependencyUseCase: com.example.offlinereminder.domain.usecase.RemoveEventDependencyUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.RemoveEventDependencyUseCase(eventRepository)
+    }
+
+    override val getEventDependenciesUseCase: com.example.offlinereminder.domain.usecase.GetEventDependenciesUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetEventDependenciesUseCase(eventRepository)
+    }
+
+    override val getEventDependentsUseCase: com.example.offlinereminder.domain.usecase.GetEventDependentsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetEventDependentsUseCase(eventRepository)
+    }
+
+    override val addEventRelationshipUseCase: com.example.offlinereminder.domain.usecase.AddEventRelationshipUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.AddEventRelationshipUseCase(eventRepository)
+    }
+
+    override val removeEventRelationshipUseCase: com.example.offlinereminder.domain.usecase.RemoveEventRelationshipUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.RemoveEventRelationshipUseCase(eventRepository)
+    }
+
+    override val getEventRelationshipsUseCase: com.example.offlinereminder.domain.usecase.GetEventRelationshipsUseCase by lazy {
+        com.example.offlinereminder.domain.usecase.GetEventRelationshipsUseCase(eventRepository)
     }
 }

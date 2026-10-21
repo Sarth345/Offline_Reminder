@@ -10,4 +10,5 @@ interface NotificationProfileRepository {
     suspend fun saveProfile(profile: NotificationProfile): Result<Unit>
     suspend fun deleteProfile(id: String): Result<Unit>
     suspend fun getDefaultProfile(): NotificationProfile?
+    suspend fun setDefaultProfile(id: String): Result<Unit>
 }

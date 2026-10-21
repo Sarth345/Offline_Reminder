@@ -23,6 +23,9 @@ class NotificationProfileRepositoryImpl(
 
     override suspend fun saveProfile(profile: NotificationProfile): Result<Unit> = Result.runCatching {
         notificationProfileDao.insert(profile.toEntity())
+        if (profile.isDefault) {
+            notificationProfileDao.setDefaultProfile(profile.id)
+        }
     }
 
     override suspend fun deleteProfile(id: String): Result<Unit> = Result.runCatching {
@@ -32,4 +35,8 @@ class NotificationProfileRepositoryImpl(
 
     override suspend fun getDefaultProfile(): NotificationProfile? =
         notificationProfileDao.getDefaultProfile()?.toDomain()
+
+    override suspend fun setDefaultProfile(id: String): Result<Unit> = Result.runCatching {
+        notificationProfileDao.setDefaultProfile(id)
+    }
 }

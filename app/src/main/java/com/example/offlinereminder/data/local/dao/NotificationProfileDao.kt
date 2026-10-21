@@ -42,6 +42,9 @@ interface NotificationProfileDao {
     @Query("SELECT * FROM notification_profiles WHERE is_default = 1 LIMIT 1")
     suspend fun getDefaultProfile(): NotificationProfileEntity?
 
+    @Query("UPDATE notification_profiles SET is_default = CASE WHEN id = :id THEN 1 ELSE 0 END")
+    suspend fun setDefaultProfile(id: String)
+
     @Query("UPDATE notification_profiles SET custom_sound_id = NULL, sound_source = 'DEFAULT' WHERE custom_sound_id = :soundId")
     suspend fun detachCustomSound(soundId: String)
 

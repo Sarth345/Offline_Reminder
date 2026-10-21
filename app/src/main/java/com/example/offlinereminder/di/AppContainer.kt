@@ -111,4 +111,46 @@ interface AppContainer {
     val createEventTypeUseCase: com.example.offlinereminder.domain.usecase.CreateEventTypeUseCase
     val updateEventTypeUseCase: com.example.offlinereminder.domain.usecase.UpdateEventTypeUseCase
     val deleteEventTypeUseCase: com.example.offlinereminder.domain.usecase.DeleteEventTypeUseCase
+
+    // Phase 12B Use Cases
+    val createNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.CreateNotificationProfileUseCase
+    val updateNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.UpdateNotificationProfileUseCase
+    val getNotificationProfilesUseCase: com.example.offlinereminder.domain.usecase.GetNotificationProfilesUseCase
+    val getNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.GetNotificationProfileUseCase
+    val deleteNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.DeleteNotificationProfileUseCase
+    val setDefaultNotificationProfileUseCase: com.example.offlinereminder.domain.usecase.SetDefaultNotificationProfileUseCase
+
+    val addCustomSoundUseCase: com.example.offlinereminder.domain.usecase.AddCustomSoundUseCase
+    val updateCustomSoundUseCase: com.example.offlinereminder.domain.usecase.UpdateCustomSoundUseCase
+    val getCustomSoundsUseCase: com.example.offlinereminder.domain.usecase.GetCustomSoundsUseCase
+    val getCustomSoundUseCase: com.example.offlinereminder.domain.usecase.GetCustomSoundUseCase
+    val deleteCustomSoundUseCase: com.example.offlinereminder.domain.usecase.DeleteCustomSoundUseCase
+
+    val createEventTemplateUseCase: com.example.offlinereminder.domain.usecase.CreateEventTemplateUseCase
+    val updateEventTemplateUseCase: com.example.offlinereminder.domain.usecase.UpdateEventTemplateUseCase
+    val getEventTemplatesUseCase: com.example.offlinereminder.domain.usecase.GetEventTemplatesUseCase
+    val getEventTemplateUseCase: com.example.offlinereminder.domain.usecase.GetEventTemplateUseCase
+    val deleteEventTemplateUseCase: com.example.offlinereminder.domain.usecase.DeleteEventTemplateUseCase
+    val createEventFromTemplateUseCase: com.example.offlinereminder.domain.usecase.CreateEventFromTemplateUseCase
+
+    val setEventFavoriteUseCase: com.example.offlinereminder.domain.usecase.SetEventFavoriteUseCase
+    val toggleEventFavoriteUseCase: com.example.offlinereminder.domain.usecase.ToggleEventFavoriteUseCase
+    val getFavoriteEventsUseCase: com.example.offlinereminder.domain.usecase.GetFavoriteEventsUseCase
+
+    val restoreArchivedEventUseCase: com.example.offlinereminder.domain.usecase.RestoreArchivedEventUseCase
+    val restoreTrashedEventUseCase: com.example.offlinereminder.domain.usecase.RestoreTrashedEventUseCase
+    val permanentlyDeleteEventUseCase: com.example.offlinereminder.domain.usecase.PermanentlyDeleteEventUseCase
+    val emptyTrashUseCase: com.example.offlinereminder.domain.usecase.EmptyTrashUseCase
+    val purgeExpiredTrashUseCase: com.example.offlinereminder.domain.usecase.PurgeExpiredTrashUseCase
+
+    val duplicateEventUseCase: com.example.offlinereminder.domain.usecase.DuplicateEventUseCase
+    val detectEventConflictsUseCase: com.example.offlinereminder.domain.usecase.DetectEventConflictsUseCase
+
+    val addEventDependencyUseCase: com.example.offlinereminder.domain.usecase.AddEventDependencyUseCase
+    val removeEventDependencyUseCase: com.example.offlinereminder.domain.usecase.RemoveEventDependencyUseCase
+    val getEventDependenciesUseCase: com.example.offlinereminder.domain.usecase.GetEventDependenciesUseCase
+    val getEventDependentsUseCase: com.example.offlinereminder.domain.usecase.GetEventDependentsUseCase
+    val addEventRelationshipUseCase: com.example.offlinereminder.domain.usecase.AddEventRelationshipUseCase
+    val removeEventRelationshipUseCase: com.example.offlinereminder.domain.usecase.RemoveEventRelationshipUseCase
+    val getEventRelationshipsUseCase: com.example.offlinereminder.domain.usecase.GetEventRelationshipsUseCase
 }
