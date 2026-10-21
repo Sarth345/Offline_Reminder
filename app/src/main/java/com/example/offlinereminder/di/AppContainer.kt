@@ -50,6 +50,8 @@ interface AppContainer {
     val dispatcherProvider: DispatcherProvider
     val alarmScheduler: AlarmScheduler
     val recurrenceEngine: RecurrenceEngine
+    val customSoundStorage: com.example.offlinereminder.data.sound.CustomSoundStorage
+    val alarmStateManager: com.example.offlinereminder.data.alarm.AlarmStateManager
 
     val eventRepository: EventRepository
     val categoryRepository: CategoryRepository

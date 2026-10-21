@@ -10,6 +10,7 @@ import com.example.offlinereminder.core.time.SystemTimeProvider
 import com.example.offlinereminder.core.time.TimeProvider
 import com.example.offlinereminder.data.local.AppDatabase
 import com.example.offlinereminder.data.notification.AndroidAlarmScheduler
+import com.example.offlinereminder.data.notification.NotificationPoster
 import com.example.offlinereminder.data.repository.CategoryRepositoryImpl
 import com.example.offlinereminder.data.repository.CustomSoundRepositoryImpl
 import com.example.offlinereminder.data.repository.EventGroupRepositoryImpl
@@ -97,6 +98,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         AndroidAlarmScheduler(context.applicationContext)
     }
 
+    override val customSoundStorage: com.example.offlinereminder.data.sound.CustomSoundStorage by lazy {
+        com.example.offlinereminder.data.sound.CustomSoundStorage(context.applicationContext)
+    }
+
+    override val alarmStateManager: com.example.offlinereminder.data.alarm.AlarmStateManager by lazy {
+        com.example.offlinereminder.data.alarm.AlarmStateManager.getInstance()
+    }
+
     override val recurrenceEngine: RecurrenceEngine by lazy {
         DefaultRecurrenceEngine(timeProvider)
     }
@@ -182,7 +191,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         RebootRecoveryUseCase(
             notificationRepository = notificationRepository,
             alarmScheduler = alarmScheduler,
-            timeProvider = timeProvider
+            timeProvider = timeProvider,
+            onMissedAlarm = { instance ->
+                NotificationPoster(context).postMissedAlarmNotification(
+                    eventId = instance.eventId,
+                    eventTitle = "Missed Alarm",
+                    notificationId = instance.requestCode
+                )
+            }
         )
     }
 

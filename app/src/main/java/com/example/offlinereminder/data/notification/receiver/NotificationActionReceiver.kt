@@ -3,20 +3,20 @@ package com.example.offlinereminder.data.notification.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.room.Room
 import com.example.offlinereminder.OfflineReminderApplication
 import com.example.offlinereminder.core.time.SystemTimeProvider
+import com.example.offlinereminder.data.alarm.AlarmPlaybackService
 import com.example.offlinereminder.data.local.AppDatabase
 import com.example.offlinereminder.data.local.mapper.toDomain
 import com.example.offlinereminder.data.notification.AndroidAlarmScheduler
 import com.example.offlinereminder.data.notification.NotificationPoster
-import com.example.offlinereminder.data.repository.OfflineEventRepository
 import com.example.offlinereminder.data.repository.OccurrenceExceptionRepositoryImpl
 import com.example.offlinereminder.data.repository.OfflineNotificationRepository
-import com.example.offlinereminder.domain.model.OccurrenceException
+import com.example.offlinereminder.domain.model.NotificationInstanceStatus
 import com.example.offlinereminder.domain.model.OccurrenceStatus
 import com.example.offlinereminder.domain.notification.NotificationConstants
 import com.example.offlinereminder.domain.usecase.CompleteOccurrenceUseCase
+import com.example.offlinereminder.domain.usecase.DismissNotificationUseCase
 import com.example.offlinereminder.domain.usecase.OccurrenceMutationResult
 import com.example.offlinereminder.domain.usecase.SnoozeNotificationUseCase
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +28,7 @@ import java.time.ZoneId
 
 /**
  * Handles user interactions with notifications (Complete, Snooze, Dismiss).
- * Strictly mutates domain and persistence states without touching UI.
+ * Strictly mutates domain and persistence states through repository and use cases.
  */
 class NotificationActionReceiver : BroadcastReceiver() {
 
@@ -38,11 +38,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val db = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    AppDatabase.DATABASE_NAME
-                ).build()
+                val db = databaseOverride ?: try {
+                    (context.applicationContext as? OfflineReminderApplication)?.container?.database
+                        ?: AppDatabase.buildDatabase(context.applicationContext)
+                } catch (_: Exception) {
+                    AppDatabase.buildDatabase(context.applicationContext)
+                }
 
                 val timeProvider = SystemTimeProvider()
                 val notificationRepo = OfflineNotificationRepository(db.notificationInstanceDao())
@@ -51,6 +52,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
                 val notificationId = intent.getIntExtra(NotificationConstants.EXTRA_NOTIFICATION_ID, -1)
                 val instanceId = intent.getStringExtra(NotificationConstants.EXTRA_INSTANCE_ID)
+
+                // If alarm service is running for this instance, stop it
+                AlarmPlaybackService.stop(context)
 
                 when (action) {
                     NotificationConstants.ACTION_COMPLETE -> {
@@ -82,7 +86,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         }
 
                         if (instanceId != null) {
-                            notificationRepo.updateStatus(instanceId, com.example.offlinereminder.domain.model.NotificationInstanceStatus.DELIVERED)
+                            notificationRepo.updateStatus(instanceId, NotificationInstanceStatus.DELIVERED)
                         }
                         if (notificationId != -1) {
                             poster.cancelNotification(notificationId)
@@ -112,14 +116,23 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
                     NotificationConstants.ACTION_DISMISS -> {
                         if (instanceId != null) {
-                            notificationRepo.updateStatus(instanceId, com.example.offlinereminder.domain.model.NotificationInstanceStatus.DISMISSED)
+                            val dismissUseCase = DismissNotificationUseCase(notificationRepo, alarmScheduler)
+                            dismissUseCase(instanceId)
+                        }
+                        if (notificationId != -1) {
+                            poster.cancelNotification(notificationId)
                         }
                     }
                 }
             } catch (ignored: Exception) {
             } finally {
-                pendingResult.finish()
+                pendingResult?.finish()
             }
         }
+    }
+
+    companion object {
+        @Volatile
+        var databaseOverride: AppDatabase? = null
     }
 }

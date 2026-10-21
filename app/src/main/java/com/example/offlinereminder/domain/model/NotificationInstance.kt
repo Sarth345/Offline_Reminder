@@ -9,7 +9,9 @@ enum class NotificationInstanceStatus {
     DELIVERED,
     DISMISSED,
     SNOOZED,
-    CANCELLED
+    CANCELLED,
+    RINGING,
+    TIMED_OUT
 }
 
 /**
@@ -32,7 +34,17 @@ data class NotificationInstance(
         get() = EventOccurrence.createOccurrenceId(eventId, occurrenceOriginalStartDateTime, occurrenceOriginalZoneId)
 
     val isPending: Boolean
-        get() = status == NotificationInstanceStatus.SCHEDULED || status == NotificationInstanceStatus.SNOOZED
+        get() = status == NotificationInstanceStatus.SCHEDULED ||
+                status == NotificationInstanceStatus.SNOOZED ||
+                status == NotificationInstanceStatus.RINGING
+
+    val isTerminal: Boolean
+        get() = status in listOf(
+            NotificationInstanceStatus.DELIVERED,
+            NotificationInstanceStatus.DISMISSED,
+            NotificationInstanceStatus.TIMED_OUT,
+            NotificationInstanceStatus.CANCELLED
+        )
 
     companion object {
         fun createInstanceId(

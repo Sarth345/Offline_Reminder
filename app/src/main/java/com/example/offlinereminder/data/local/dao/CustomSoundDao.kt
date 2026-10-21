@@ -31,6 +31,9 @@ interface CustomSoundDao {
     suspend fun getById(id: String): CustomSoundEntity?
 
     @Query("SELECT * FROM custom_sounds WHERE id = :id")
+    fun getByIdSync(id: String): CustomSoundEntity?
+
+    @Query("SELECT * FROM custom_sounds WHERE id = :id")
     fun getByIdFlow(id: String): Flow<CustomSoundEntity?>
 
     @Query("SELECT * FROM custom_sounds ORDER BY title ASC")
