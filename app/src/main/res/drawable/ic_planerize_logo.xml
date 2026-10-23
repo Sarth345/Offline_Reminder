@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+
+    <!-- Outer Rounded Badge Background -->
+    <path
+        android:fillColor="#3F51B5"
+        android:pathData="M16,8 L80,8 A8,8 0 0,1 88,16 L88,80 A8,8 0 0,1 80,88 L16,88 A8,8 0 0,1 8,80 L8,16 A8,8 0 0,1 16,8 Z" />
+
+    <!-- Calendar Top Header Bar -->
+    <path
+        android:fillColor="#303F9F"
+        android:pathData="M8,16 L88,16 L88,32 L8,32 Z" />
+
+    <!-- Calendar Ring Hooks -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,4 L30,4 L30,20 L24,20 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M66,4 L72,4 L72,20 L66,20 Z" />
+
+    <!-- Calendar Clock Face Motif -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,38 A22,22 0 1,0 70,60 A22,22 0 0,0 48,38 Z M48,76 A16,16 0 1,1 64,60 A16,16 0 0,1 48,76 Z" />
+
+    <!-- Clock Hands (10:10 planning position) -->
+    <path
+        android:fillColor="#3F51B5"
+        android:pathData="M46,47 L50,47 L50,60 L57,60 L57,64 L46,64 Z" />
+
+    <!-- Upward Checkmark Accent -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M52,66 L42,56 L38,60 L52,74 L76,50 L72,46 Z" />
+</vector>

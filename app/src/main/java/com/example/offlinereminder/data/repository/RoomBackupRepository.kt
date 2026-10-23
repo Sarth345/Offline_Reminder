@@ -62,6 +62,7 @@ class RoomBackupRepository(
     private val eventDependencyDao = database.eventDependencyDao()
     private val eventRelationshipDao = database.eventRelationshipDao()
     private val notificationInstanceDao = database.notificationInstanceDao()
+    private val savedLocationDao = database.savedLocationDao()
 
     override suspend fun createBackupPayload(): Result<BackupPayload> = Result.runCatching {
         val categories = categoryDao.getAll().map { it.toBackupDto() }
@@ -73,6 +74,7 @@ class RoomBackupRepository(
         val exceptions = occurrenceExceptionDao.getAll().map { it.toBackupDto() }
         val dependencies = eventDependencyDao.getAll().map { it.toBackupDto() }
         val relationships = eventRelationshipDao.getAll().map { it.toBackupDto() }
+        val savedLocations = savedLocationDao.getAll().map { it.toDomain().toBackupDto() }
         val settings = settingsRepository?.getSettings()?.toBackupDto() ?: SettingsBackupDto()
 
         BackupPayload(
@@ -87,6 +89,7 @@ class RoomBackupRepository(
             occurrenceExceptions = exceptions,
             dependencies = dependencies,
             relationships = relationships,
+            savedLocations = savedLocations,
             settings = settings
         )
     }
@@ -194,6 +197,11 @@ class RoomBackupRepository(
                         eventRelationshipDao.insertAll(payload.relationships.map { it.toEntity() })
                         restoredRels = payload.relationships.size
                     }
+
+                    savedLocationDao.deleteAll()
+                    if (payload.savedLocations.isNotEmpty()) {
+                        savedLocationDao.insertAll(payload.savedLocations.map { it.toDomain().toEntity() })
+                    }
                 }
 
                 RestoreStrategy.MERGE_OVERWRITE -> {
@@ -258,6 +266,10 @@ class RoomBackupRepository(
                     if (payload.relationships.isNotEmpty()) {
                         eventRelationshipDao.insertAll(payload.relationships.map { it.toEntity() })
                         restoredRels = payload.relationships.size
+                    }
+
+                    if (payload.savedLocations.isNotEmpty()) {
+                        savedLocationDao.insertAll(payload.savedLocations.map { it.toDomain().toEntity() })
                     }
                 }
 
@@ -325,6 +337,12 @@ class RoomBackupRepository(
                     if (payload.relationships.isNotEmpty()) {
                         eventRelationshipDao.insertAll(payload.relationships.map { it.toEntity() })
                         restoredRels = payload.relationships.size
+                    }
+
+                    val existingLocIds = savedLocationDao.getAll().map { it.id }.toSet()
+                    val newLocations = payload.savedLocations.filter { it.id !in existingLocIds }
+                    if (newLocations.isNotEmpty()) {
+                        savedLocationDao.insertAll(newLocations.map { it.toDomain().toEntity() })
                     }
                 }
             }

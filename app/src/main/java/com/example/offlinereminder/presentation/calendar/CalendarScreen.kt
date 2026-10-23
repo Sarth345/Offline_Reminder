@@ -152,16 +152,16 @@ fun CalendarContent(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 )
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
                     // Month navigation bar
                     MonthNavigationBar(
@@ -227,7 +227,7 @@ fun CalendarContent(
                         modifier = Modifier
                             .fillMaxSize()
                             .semantics { contentDescription = "Occurrences for selected date" },
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 88.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(
@@ -339,7 +339,10 @@ fun MonthGrid(
     val totalCells = firstDayOfWeekIndex + daysInMonth
     val rows = (totalCells + 6) / 7
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
         for (row in 0 until rows) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -364,8 +367,8 @@ fun MonthGrid(
                             modifier = Modifier.weight(1f)
                         )
                     } else {
-                        // Empty padding cell
-                        Spacer(modifier = Modifier.weight(1f).height(44.dp))
+                        // Empty padding cell with matching height
+                        Spacer(modifier = Modifier.weight(1f).height(40.dp))
                     }
                 }
             }
@@ -386,8 +389,8 @@ fun DayCell(
 
     Column(
         modifier = modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .height(40.dp)
+            .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick)
             .semantics { contentDescription = cellDescription },
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -395,7 +398,7 @@ fun DayCell(
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(28.dp)
                 .clip(CircleShape)
                 .background(
                     when {
@@ -408,7 +411,7 @@ fun DayCell(
         ) {
             Text(
                 text = dayNumber.toString(),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
                 color = when {
                     isSelected -> MaterialTheme.colorScheme.onPrimary
@@ -422,14 +425,14 @@ fun DayCell(
         if (hasOccurrences) {
             Box(
                 modifier = Modifier
-                    .size(5.dp)
+                    .size(4.dp)
                     .clip(CircleShape)
                     .background(
                         if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
                     )
             )
         } else {
-            Spacer(modifier = Modifier.size(5.dp))
+            Spacer(modifier = Modifier.size(4.dp))
         }
     }
 }

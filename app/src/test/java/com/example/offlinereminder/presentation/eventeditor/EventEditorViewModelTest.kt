@@ -25,6 +25,7 @@ import com.example.offlinereminder.domain.usecase.GetTagsUseCase
 import com.example.offlinereminder.domain.usecase.UpdateEventUseCase
 import com.example.offlinereminder.domain.usecase.ValidateEventUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -264,5 +265,159 @@ class EventEditorViewModelTest {
         assertEquals(date, range.startDate)
         val expectedEnd = range.startDateTime.plusMinutes(60)
         assertEquals(expectedEnd, range.endDateTime)
+    }
+
+    @Test
+    fun simplestValidEvent_titleEntered_canSaveIsTrueAndSavesSuccessfully() = runTest(testDispatcher) {
+        // Pre-condition: standard General category and General event type exist
+        categoryRepository.saveCategory(Category("cat_general", "General", 0, null, false, 0))
+        eventTypeRepository.saveEventType(EventType("type_general", "General", "general_reminder", "cat_general", createdAt = timeProvider.nowInstant()))
+
+        val viewModel = createViewModel()
+        testScheduler.advanceUntilIdle()
+
+        // User opens "New Reminder"
+        viewModel.onAction(EventEditorAction.InitWithDefaults(null, null))
+        testScheduler.advanceUntilIdle()
+
+        var state = viewModel.uiState.value
+        // Initially, title is blank, so canSave is false with clear explanation
+        assertFalse(state.canSave)
+        assertEquals("Title is required", state.missingFieldExplanation)
+        assertEquals("cat_general", state.categoryId)
+        assertEquals("type_general", state.eventTypeId)
+        assertEquals(Priority.NORMAL, state.priority)
+        assertNotNull(state.temporal)
+
+        // User enters title "Test Event"
+        viewModel.onAction(EventEditorAction.UpdateTitle("Test Event"))
+        testScheduler.advanceUntilIdle()
+
+        state = viewModel.uiState.value
+        // NOW canSave MUST be true!
+        assertTrue(state.canSave)
+        assertNull(state.missingFieldExplanation)
+        assertEquals("Test Event", state.title)
+
+        // User clicks Save
+        viewModel.onAction(EventEditorAction.SaveEvent)
+        testScheduler.advanceUntilIdle()
+
+        state = viewModel.uiState.value
+        assertTrue(state.isSaved)
+        assertNull(state.validationError)
+
+        // Verify the event was saved in repository
+        val allEvents = eventRepository.getAllActiveEvents()
+        val saved = allEvents.first().firstOrNull()
+        assertNotNull(saved)
+        assertEquals("Test Event", saved?.title)
+        assertEquals("cat_general", saved?.categoryId)
+        assertEquals("type_general", saved?.eventTypeId)
+        assertEquals(Priority.NORMAL, saved?.priority)
+    }
+
+    @Test
+    fun selectCategory_switchesDefaultEventTypeToMatchingCategory() = runTest(testDispatcher) {
+        categoryRepository.saveCategory(Category("cat_general", "General", 0, null, false, 0))
+        categoryRepository.saveCategory(Category("cat_work", "Work", 0, null, false, 1))
+
+        eventTypeRepository.saveEventType(EventType("type_general", "General", "general_reminder", "cat_general", createdAt = timeProvider.nowInstant()))
+        eventTypeRepository.saveEventType(EventType("type_meeting", "Meeting", "meeting", "cat_work", createdAt = timeProvider.nowInstant()))
+
+        val viewModel = createViewModel()
+        testScheduler.advanceUntilIdle()
+
+        viewModel.onAction(EventEditorAction.InitWithDefaults(null, null))
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("cat_general", viewModel.uiState.value.categoryId)
+        assertEquals("type_general", viewModel.uiState.value.eventTypeId)
+
+        // User switches category to Work
+        viewModel.onAction(EventEditorAction.SelectCategory("cat_work"))
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("cat_work", viewModel.uiState.value.categoryId)
+        assertEquals("type_meeting", viewModel.uiState.value.eventTypeId)
+    }
+
+    @Test
+    fun basicReminder_requiresOnlyTitleAndDate_categoryAndTypeAreOptional() = runTest(testDispatcher) {
+        categoryRepository.saveCategory(Category("cat_general", "General", 0, null, false, 0))
+        eventTypeRepository.saveEventType(EventType("type_general", "General", "general_reminder", "cat_general", createdAt = timeProvider.nowInstant()))
+
+        val viewModel = createViewModel()
+        testScheduler.advanceUntilIdle()
+
+        viewModel.onAction(EventEditorAction.InitWithDefaults(null, null))
+        testScheduler.advanceUntilIdle()
+
+        // Clear categoryId and eventTypeId to simulate zero user selection
+        viewModel.onAction(EventEditorAction.SelectCategory(""))
+        viewModel.onAction(EventEditorAction.SelectEventType(""))
+        viewModel.onAction(EventEditorAction.UpdateTitle("Doctor appointment"))
+        testScheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        // User perspective: canSave MUST be true even without category or event type selected
+        assertTrue(state.canSave)
+        assertNull(state.missingFieldExplanation)
+
+        viewModel.onAction(EventEditorAction.SaveEvent)
+        testScheduler.advanceUntilIdle()
+
+        val savedState = viewModel.uiState.value
+        assertTrue(savedState.isSaved)
+        assertNull(savedState.validationError)
+
+        val allEvents = eventRepository.getAllActiveEvents().first()
+        val created = allEvents.firstOrNull()
+        assertNotNull(created)
+        assertEquals("Doctor appointment", created?.title)
+        // Background resolution defaulted to valid categories and event types
+        assertEquals("cat_general", created?.categoryId)
+        assertEquals("type_general", created?.eventTypeId)
+    }
+
+    @Test
+    fun advancedOptions_categoryPriorityLocationAndRepeat_persistSuccessfully() = runTest(testDispatcher) {
+        categoryRepository.saveCategory(Category("cat_health", "Health", 0, null, false, 0))
+        eventTypeRepository.saveEventType(EventType("type_doc", "Doctor", "doctor", "cat_health", createdAt = timeProvider.nowInstant()))
+
+        val viewModel = createViewModel()
+        testScheduler.advanceUntilIdle()
+
+        viewModel.onAction(EventEditorAction.InitWithDefaults(null, null))
+        testScheduler.advanceUntilIdle()
+
+        viewModel.onAction(EventEditorAction.UpdateTitle("Doctor appointment"))
+        viewModel.onAction(EventEditorAction.SelectCategory("cat_health"))
+        viewModel.onAction(EventEditorAction.SelectEventType("type_doc"))
+        viewModel.onAction(EventEditorAction.UpdatePriority(Priority.HIGH))
+        viewModel.onAction(EventEditorAction.UpdateLocation("City Hospital, Room 402"))
+        viewModel.onAction(
+            EventEditorAction.UpdateRecurrence(
+                com.example.offlinereminder.domain.model.RecurrenceRule(
+                    frequency = com.example.offlinereminder.domain.model.RecurrenceFrequency.WEEKLY,
+                    interval = 1,
+                    daysOfWeek = setOf(java.time.DayOfWeek.MONDAY)
+                )
+            )
+        )
+        viewModel.onAction(EventEditorAction.SaveEvent)
+        testScheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isSaved)
+
+        val created = eventRepository.getAllActiveEvents().first().firstOrNull()
+        assertNotNull(created)
+        assertEquals("Doctor appointment", created?.title)
+        assertEquals("cat_health", created?.categoryId)
+        assertEquals("type_doc", created?.eventTypeId)
+        assertEquals(Priority.HIGH, created?.priority)
+        assertEquals("City Hospital, Room 402", created?.location?.placeName)
+        assertEquals(com.example.offlinereminder.domain.model.RecurrenceFrequency.WEEKLY, created?.recurrenceRule?.frequency)
     }
 }

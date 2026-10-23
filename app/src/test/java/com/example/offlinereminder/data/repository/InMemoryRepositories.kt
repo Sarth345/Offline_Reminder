@@ -393,6 +393,12 @@ class InMemoryOccurrenceExceptionRepository : OccurrenceExceptionRepository {
                 (resched != null && !resched.isBefore(startLdt) && !resched.isAfter(endLdt))
         }
 
+    override suspend fun getAllExceptions(): List<OccurrenceException> =
+        exceptions.value.values.toList()
+
+    override fun getAllExceptionsFlow(): Flow<List<OccurrenceException>> =
+        exceptions.map { it.values.toList() }
+
     override suspend fun saveException(exception: OccurrenceException): Result<Unit> = Result.runCatching {
         val current = exceptions.value.toMutableMap()
         current[exception.id] = exception
@@ -508,4 +514,71 @@ class InMemoryEventTemplateRepository : EventTemplateRepository {
 
     override suspend fun countTemplatesByEventType(eventTypeId: String): Int =
         templates.value.values.count { it.eventTypeId == eventTypeId }
+}
+
+/**
+ * In-memory test double for [SavedLocationRepository].
+ */
+class InMemorySavedLocationRepository : com.example.offlinereminder.domain.repository.SavedLocationRepository {
+    val locations = MutableStateFlow<Map<String, com.example.offlinereminder.domain.model.SavedLocation>>(emptyMap())
+
+    override fun getAllLocationsFlow(): Flow<List<com.example.offlinereminder.domain.model.SavedLocation>> =
+        locations.map { it.values.sortedWith(compareByDescending<com.example.offlinereminder.domain.model.SavedLocation> { it.isFavorite }.thenBy { it.name }) }
+
+    override fun getFavoriteLocationsFlow(): Flow<List<com.example.offlinereminder.domain.model.SavedLocation>> =
+        locations.map { it.values.filter { loc -> loc.isFavorite }.sortedBy { it.name } }
+
+    override fun searchLocationsFlow(query: String): Flow<List<com.example.offlinereminder.domain.model.SavedLocation>> =
+        locations.map {
+            val q = query.lowercase()
+            it.values.filter { loc -> loc.name.lowercase().contains(q) || loc.address.lowercase().contains(q) }
+        }
+
+    override suspend fun getLocationById(id: String): com.example.offlinereminder.domain.model.SavedLocation? =
+        locations.value[id]
+
+    override suspend fun getLocationByName(name: String): com.example.offlinereminder.domain.model.SavedLocation? =
+        locations.value.values.firstOrNull { it.name.equals(name, ignoreCase = true) }
+
+    override suspend fun saveLocation(location: com.example.offlinereminder.domain.model.SavedLocation): Result<Unit> = Result.runCatching {
+        val current = locations.value.toMutableMap()
+        current[location.id] = location
+        locations.value = current
+    }
+
+    override suspend fun deleteLocation(id: String): Result<Unit> = Result.runCatching {
+        val current = locations.value.toMutableMap()
+        current.remove(id)
+        locations.value = current
+    }
+
+    override suspend fun toggleFavorite(id: String): Result<Unit> = Result.runCatching {
+        val loc = locations.value[id] ?: return@runCatching
+        val current = locations.value.toMutableMap()
+        current[id] = loc.copy(isFavorite = !loc.isFavorite)
+        locations.value = current
+    }
+}
+
+/**
+ * In-memory test double for [SettingsRepository].
+ */
+class InMemorySettingsRepository(initialSettings: com.example.offlinereminder.domain.model.AppSettings = com.example.offlinereminder.domain.model.AppSettings()) : com.example.offlinereminder.domain.repository.SettingsRepository {
+    val settingsFlow = MutableStateFlow(initialSettings)
+
+    override fun getSettingsFlow(): Flow<com.example.offlinereminder.domain.model.AppSettings> = settingsFlow
+
+    override suspend fun getSettings(): com.example.offlinereminder.domain.model.AppSettings = settingsFlow.value
+
+    override suspend fun updateSettings(transform: (com.example.offlinereminder.domain.model.AppSettings) -> com.example.offlinereminder.domain.model.AppSettings): Result<com.example.offlinereminder.domain.model.AppSettings> = Result.runCatching {
+        val updated = transform(settingsFlow.value)
+        settingsFlow.value = updated
+        updated
+    }
+
+    override suspend fun resetSettings(): Result<com.example.offlinereminder.domain.model.AppSettings> = Result.runCatching {
+        val default = com.example.offlinereminder.domain.model.AppSettings()
+        settingsFlow.value = default
+        default
+    }
 }

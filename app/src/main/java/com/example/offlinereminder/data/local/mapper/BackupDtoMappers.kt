@@ -246,7 +246,20 @@ fun AppSettings.toBackupDto(): SettingsBackupDto = SettingsBackupDto(
     defaultSnoozeDurationMinutes = defaultSnoozeDurationMinutes,
     soundEnabled = soundEnabled,
     vibrationEnabled = vibrationEnabled,
-    quietHours = quietHours.toBackupDto()
+    quietHours = quietHours.toBackupDto(),
+    appLockEnabled = appLock.isEnabled,
+    appLockTimeoutMinutes = appLock.timeoutMinutes,
+    appLockOnBackground = appLock.lockOnBackground,
+    notificationsEnabled = notificationsEnabled,
+    alarmModeEnabled = alarmModeEnabled,
+    notificationSoundType = notificationSound.type.name,
+    notificationSoundCustomId = notificationSound.customSoundId,
+    notificationSoundSysUri = notificationSound.systemUriString,
+    notificationSoundBuiltInKey = notificationSound.builtInSoundKey,
+    alarmSoundType = alarmSound.type.name,
+    alarmSoundCustomId = alarmSound.customSoundId,
+    alarmSoundSysUri = alarmSound.systemUriString,
+    alarmSoundBuiltInKey = alarmSound.builtInSoundKey
 )
 
 fun SettingsBackupDto.toDomain(): AppSettings = AppSettings(
@@ -256,10 +269,29 @@ fun SettingsBackupDto.toDomain(): AppSettings = AppSettings(
     firstDayOfWeek = runCatching { DayOfWeek.valueOf(firstDayOfWeek) }.getOrDefault(DayOfWeek.MONDAY),
     defaultEventPriority = runCatching { Priority.valueOf(defaultEventPriority) }.getOrDefault(Priority.NORMAL),
     defaultEventDurationMinutes = if (defaultEventDurationMinutes > 0) defaultEventDurationMinutes else 60,
-    defaultSnoozeDurationMinutes = if (defaultSnoozeDurationMinutes > 0) defaultSnoozeDurationMinutes else 10,
+    defaultSnoozeDurationMinutes = if (defaultSnoozeDurationMinutes > 0) defaultSnoozeDurationMinutes else 15,
     soundEnabled = soundEnabled,
     vibrationEnabled = vibrationEnabled,
-    quietHours = quietHours.toDomain()
+    quietHours = quietHours.toDomain(),
+    appLock = com.example.offlinereminder.domain.model.AppLockSettings(
+        isEnabled = appLockEnabled,
+        timeoutMinutes = appLockTimeoutMinutes,
+        lockOnBackground = appLockOnBackground
+    ),
+    notificationsEnabled = notificationsEnabled,
+    alarmModeEnabled = alarmModeEnabled,
+    notificationSound = com.example.offlinereminder.domain.model.SoundReference(
+        type = runCatching { com.example.offlinereminder.domain.model.SoundSourceType.valueOf(notificationSoundType) }.getOrDefault(com.example.offlinereminder.domain.model.SoundSourceType.DEFAULT),
+        customSoundId = notificationSoundCustomId,
+        systemUriString = notificationSoundSysUri,
+        builtInSoundKey = notificationSoundBuiltInKey
+    ),
+    alarmSound = com.example.offlinereminder.domain.model.SoundReference(
+        type = runCatching { com.example.offlinereminder.domain.model.SoundSourceType.valueOf(alarmSoundType) }.getOrDefault(com.example.offlinereminder.domain.model.SoundSourceType.DEFAULT),
+        customSoundId = alarmSoundCustomId,
+        systemUriString = alarmSoundSysUri,
+        builtInSoundKey = alarmSoundBuiltInKey
+    )
 )
 
 // ----------------------------------------------------
@@ -531,3 +563,33 @@ fun AttachmentBackupDto.toEntity(eventId: String): AttachmentEntity = Attachment
     fileSizeBytes = fileSizeBytes,
     createdAt = Instant.parse(createdAt)
 )
+
+fun com.example.offlinereminder.domain.model.SavedLocation.toBackupDto(): com.example.offlinereminder.domain.backup.SavedLocationBackupDto =
+    com.example.offlinereminder.domain.backup.SavedLocationBackupDto(
+        id = id,
+        name = name,
+        address = address,
+        building = building,
+        room = room,
+        latitude = latitude,
+        longitude = longitude,
+        notes = notes,
+        isFavorite = isFavorite,
+        createdAt = createdAt.toString(),
+        updatedAt = updatedAt.toString()
+    )
+
+fun com.example.offlinereminder.domain.backup.SavedLocationBackupDto.toDomain(): com.example.offlinereminder.domain.model.SavedLocation =
+    com.example.offlinereminder.domain.model.SavedLocation(
+        id = id,
+        name = name,
+        address = address,
+        building = building,
+        room = room,
+        latitude = latitude,
+        longitude = longitude,
+        notes = notes,
+        isFavorite = isFavorite,
+        createdAt = Instant.parse(createdAt),
+        updatedAt = Instant.parse(updatedAt)
+    )

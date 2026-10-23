@@ -159,4 +159,24 @@ interface AppContainer {
     // Phase 13 Quick Add
     val quickAddParser: com.example.offlinereminder.domain.quickadd.QuickAddParser
     val createEventFromQuickAddUseCase: com.example.offlinereminder.domain.quickadd.CreateEventFromQuickAddUseCase
+
+    // Planerize 1.1 Expansion
+    val savedLocationRepository: com.example.offlinereminder.domain.repository.SavedLocationRepository
+    val getSavedLocationsUseCase: com.example.offlinereminder.domain.usecase.GetSavedLocationsUseCase
+    val saveSavedLocationUseCase: com.example.offlinereminder.domain.usecase.SaveSavedLocationUseCase
+    val deleteSavedLocationUseCase: com.example.offlinereminder.domain.usecase.DeleteSavedLocationUseCase
+    val toggleSavedLocationFavoriteUseCase: com.example.offlinereminder.domain.usecase.ToggleSavedLocationFavoriteUseCase
+
+    val getAppLockSettingsUseCase: com.example.offlinereminder.domain.usecase.GetAppLockSettingsUseCase
+    val updateAppLockSettingsUseCase: com.example.offlinereminder.domain.usecase.UpdateAppLockSettingsUseCase
+    val checkAppLockRequiredUseCase: com.example.offlinereminder.domain.usecase.CheckAppLockRequiredUseCase
+    val appLockCoordinator: com.example.offlinereminder.presentation.security.AppLockCoordinator
+
+    val editRecurringSeriesUseCase: com.example.offlinereminder.domain.usecase.EditRecurringSeriesUseCase
+    val exportEventsUseCase: com.example.offlinereminder.domain.usecase.ExportEventsUseCase
+    val previewIcsImportUseCase: com.example.offlinereminder.domain.usecase.PreviewIcsImportUseCase
+    val confirmIcsImportUseCase: com.example.offlinereminder.domain.usecase.ConfirmIcsImportUseCase
+
+    val getStatisticsUseCase: com.example.offlinereminder.domain.usecase.GetStatisticsUseCase
+    val getProductivityInsightsUseCase: com.example.offlinereminder.domain.usecase.GetProductivityInsightsUseCase
 }

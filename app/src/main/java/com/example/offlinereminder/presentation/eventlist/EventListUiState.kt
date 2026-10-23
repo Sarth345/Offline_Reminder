@@ -2,6 +2,7 @@ package com.example.offlinereminder.presentation.eventlist
 
 import com.example.offlinereminder.domain.model.Category
 import com.example.offlinereminder.domain.model.Event
+import com.example.offlinereminder.domain.model.EventDisplayStatus
 import com.example.offlinereminder.domain.model.EventGroup
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
 import com.example.offlinereminder.domain.model.EventType
@@ -14,6 +15,7 @@ data class EventListUiState(
     val isLoading: Boolean = false,
     val events: List<Event> = emptyList(),
     val filteredEvents: List<Event> = emptyList(),
+    val eventStatusMap: Map<String, EventDisplayStatus> = emptyMap(),
     val searchQuery: String = "",
     val selectedStatus: EventLifecycleStatus = EventLifecycleStatus.ACTIVE,
     val selectedCategoryId: String? = null,

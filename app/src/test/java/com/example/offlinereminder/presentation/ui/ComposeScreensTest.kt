@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.example.offlinereminder.domain.model.Category
 import com.example.offlinereminder.domain.model.Checklist
@@ -306,13 +307,66 @@ class ComposeScreensTest {
         composeTestRule.onNodeWithContentDescription("Event title input").performTextInput(" Updated")
         assertTrue("Title was updated", updatedTitle.isNotBlank())
 
+        // Expand More Options to access advanced settings like Priority
+        composeTestRule.onNodeWithContentDescription("More options").performScrollTo().performClick()
+
         // Select priority
-        composeTestRule.onNodeWithContentDescription("Select priority CRITICAL").performClick()
+        composeTestRule.onNodeWithContentDescription("Select priority CRITICAL").performScrollTo().performClick()
         assertEquals(Priority.CRITICAL, selectedPriority)
 
         // Save event
         composeTestRule.onNodeWithContentDescription("Save event").performClick()
         assertTrue("Save event action dispatched", saved)
+    }
+
+    @Test
+    fun basicReminder_savesWithoutOpeningMoreOptions() {
+        var saved = false
+        var updatedTitle = ""
+
+        composeTestRule.setContent {
+            var state by remember {
+                mutableStateOf(
+                    EventEditorUiState(
+                        title = "",
+                        temporal = sampleEvent.temporal,
+                        isEditing = false
+                    )
+                )
+            }
+
+            OfflineReminderTheme {
+                EventEditorContent(
+                    uiState = state,
+                    onAction = { action ->
+                        when (action) {
+                            is EventEditorAction.UpdateTitle -> {
+                                updatedTitle = action.title
+                                state = state.copy(title = action.title)
+                            }
+                            is EventEditorAction.SaveEvent -> saved = true
+                            else -> {}
+                        }
+                    },
+                    onNavigateBack = {}
+                )
+            }
+        }
+
+        // Verify primary screen renders minimal controls
+        composeTestRule.onNodeWithText("New Reminder").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Date").assertExists()
+        composeTestRule.onNodeWithText("Time").assertExists()
+        composeTestRule.onNodeWithText("Repeat").assertExists()
+        composeTestRule.onNodeWithContentDescription("More options").assertExists()
+
+        // Enter Title
+        composeTestRule.onNodeWithContentDescription("Event title input").performTextInput("Doctor appointment")
+        assertEquals("Doctor appointment", updatedTitle)
+
+        // Save immediately without opening More options
+        composeTestRule.onNodeWithContentDescription("Save event").performClick()
+        assertTrue("Save dispatched without opening more options", saved)
     }
 
     @Test

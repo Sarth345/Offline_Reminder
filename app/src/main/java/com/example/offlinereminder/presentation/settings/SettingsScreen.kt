@@ -6,6 +6,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +22,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Category
@@ -27,6 +30,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
@@ -83,10 +87,16 @@ import java.time.DayOfWeek
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToNotificationAlarmSettings: () -> Unit = {},
     onNavigateToTemplates: () -> Unit = {},
     onNavigateToTrash: () -> Unit = {},
     onNavigateToArchive: () -> Unit = {},
     onNavigateToNotificationProfiles: () -> Unit = {},
+    onNavigateToAppLock: () -> Unit = {},
+    onNavigateToSavedLocations: () -> Unit = {},
+    onNavigateToExport: () -> Unit = {},
+    onNavigateToIcsImport: () -> Unit = {},
+    onNavigateToStatistics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -118,12 +128,18 @@ fun SettingsScreen(
         uiState = uiState,
         onAction = viewModel::onAction,
         onNavigateBack = onNavigateBack,
+        onNavigateToNotificationAlarmSettings = onNavigateToNotificationAlarmSettings,
         onExportClick = { exportLauncher.launch("Planerize_Backup.zip") },
         onImportClick = { importLauncher.launch(arrayOf("*/*")) },
         onNavigateToTemplates = onNavigateToTemplates,
         onNavigateToTrash = onNavigateToTrash,
         onNavigateToArchive = onNavigateToArchive,
         onNavigateToNotificationProfiles = onNavigateToNotificationProfiles,
+        onNavigateToAppLock = onNavigateToAppLock,
+        onNavigateToSavedLocations = onNavigateToSavedLocations,
+        onNavigateToExport = onNavigateToExport,
+        onNavigateToIcsImport = onNavigateToIcsImport,
+        onNavigateToStatistics = onNavigateToStatistics,
         modifier = modifier
     )
 }
@@ -134,12 +150,18 @@ fun SettingsContent(
     uiState: SettingsUiState,
     onAction: (SettingsAction) -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToNotificationAlarmSettings: () -> Unit = {},
     onExportClick: () -> Unit = {},
     onImportClick: () -> Unit = {},
     onNavigateToTemplates: () -> Unit = {},
     onNavigateToTrash: () -> Unit = {},
     onNavigateToArchive: () -> Unit = {},
     onNavigateToNotificationProfiles: () -> Unit = {},
+    onNavigateToAppLock: () -> Unit = {},
+    onNavigateToSavedLocations: () -> Unit = {},
+    onNavigateToExport: () -> Unit = {},
+    onNavigateToIcsImport: () -> Unit = {},
+    onNavigateToStatistics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showAddCategoryDialog by remember { mutableStateOf(false) }
@@ -216,7 +238,41 @@ fun SettingsContent(
                 onUpdateSnooze = { onAction(SettingsAction.UpdateDefaultSnooze(it)) }
             )
 
-            // 4. Notifications & Quiet Hours Section
+            // 4. Notifications & Alarms Configuration Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Notifications & Alarms",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "Manage sound tones, alarm tunes, snooze intervals & alert permissions",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                    Button(
+                        onClick = onNavigateToNotificationAlarmSettings,
+                        modifier = Modifier.semantics { contentDescription = "Open notification and alarm configuration" }
+                    ) {
+                        Text("Configure")
+                    }
+                }
+            }
+
+            // 5. Notifications & Quiet Hours Section
             NotificationsSection(
                 soundEnabled = uiState.settings.soundEnabled,
                 vibrationEnabled = uiState.settings.vibrationEnabled,
@@ -287,6 +343,46 @@ fun SettingsContent(
                         ) {
                             Text("Trash")
                         }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onNavigateToAppLock,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Open App Lock settings" }
+                        ) {
+                            Text("App Lock")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToSavedLocations,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Open saved locations" }
+                        ) {
+                            Text("Locations")
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onNavigateToExport,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Export calendar and events" }
+                        ) {
+                            Text("Export Data")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToIcsImport,
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Import iCalendar file" }
+                        ) {
+                            Text("Import ICS")
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = onNavigateToStatistics,
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Open statistics and productivity insights" }
+                    ) {
+                        Text("Statistics & Insights")
                     }
                 }
             }
@@ -453,9 +549,10 @@ fun AppearanceSection(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
@@ -546,9 +643,10 @@ fun DateTimeSection(
 
             // Date Format Preference
             Text("Date Format", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 DateFormatPreference.entries.forEach { fmt ->
                     FilterChip(
@@ -597,18 +695,37 @@ fun EventDefaultsSection(
                 fontWeight = FontWeight.Bold
             )
 
-            // Default Priority
+            // Default Priority: 2x2 grid prevents awkward vertical text wrapping on compact screens
             Text("Default Priority", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Priority.entries.forEach { p ->
-                    FilterChip(
-                        selected = defaultPriority == p,
-                        onClick = { onUpdatePriority(p) },
-                        label = { Text(p.name) }
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(Priority.LOW, Priority.NORMAL).forEach { p ->
+                        FilterChip(
+                            selected = defaultPriority == p,
+                            onClick = { onUpdatePriority(p) },
+                            label = { Text(p.name, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(Priority.HIGH, Priority.CRITICAL).forEach { p ->
+                        FilterChip(
+                            selected = defaultPriority == p,
+                            onClick = { onUpdatePriority(p) },
+                            label = { Text(p.name, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
@@ -616,15 +733,16 @@ fun EventDefaultsSection(
 
             // Default Duration
             Text("Default Event Duration", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(15, 30, 60, 120).forEach { mins ->
                     FilterChip(
                         selected = defaultDurationMinutes == mins,
                         onClick = { onUpdateDuration(mins) },
-                        label = { Text("${mins}m") }
+                        label = { Text("${mins}m", maxLines = 1) }
                     )
                 }
             }
@@ -633,15 +751,16 @@ fun EventDefaultsSection(
 
             // Default Snooze
             Text("Default Snooze Duration", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(5, 10, 15, 30).forEach { mins ->
                     FilterChip(
                         selected = defaultSnoozeMinutes == mins,
                         onClick = { onUpdateSnooze(mins) },
-                        label = { Text("${mins}m") }
+                        label = { Text("${mins}m", maxLines = 1) }
                     )
                 }
             }
@@ -725,9 +844,10 @@ fun NotificationsSection(
 
             if (quietHours.enabled) {
                 Text("Quiet Hours Policy", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     QuietHoursPolicy.entries.forEach { policy ->
                         FilterChip(
@@ -1107,7 +1227,7 @@ private fun AboutPlanerizeCard() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Version 1.0.0 • 100% Offline & Private",
+                text = "Version 1.1.0 • 100% Offline & Private",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )

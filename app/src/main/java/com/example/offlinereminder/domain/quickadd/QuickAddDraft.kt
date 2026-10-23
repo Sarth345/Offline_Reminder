@@ -14,12 +14,14 @@ data class QuickAddDraft(
     val title: String = "",
     val date: LocalDate? = null,
     val time: LocalTime? = null,
+    val endTime: LocalTime? = null,
     val isAllDay: Boolean = true,
     val recurrenceRule: RecurrenceRule? = null,
     val priority: Priority = Priority.NORMAL,
     val categoryName: String? = null,
     val groupNames: List<String> = emptyList(),
     val tagNames: List<String> = emptyList(),
+    val locationName: String? = null,
     val reminderMinutesBefore: Int? = null,
     val validationErrors: List<String> = emptyList(),
     val ambiguities: List<String> = emptyList(),
@@ -30,4 +32,7 @@ data class QuickAddDraft(
 
     val hasDateTime: Boolean
         get() = date != null || time != null
+
+    val isTimeRange: Boolean
+        get() = time != null && endTime != null
 }

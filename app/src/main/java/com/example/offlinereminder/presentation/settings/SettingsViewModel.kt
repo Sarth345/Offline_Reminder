@@ -4,15 +4,29 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.offlinereminder.core.dispatcher.DispatcherProvider
 import com.example.offlinereminder.core.result.Result
+import com.example.offlinereminder.core.time.TimeProvider
+import com.example.offlinereminder.data.sound.CustomSoundStorage
 import com.example.offlinereminder.domain.backup.RestoreStrategy
 import com.example.offlinereminder.domain.model.Category
+import com.example.offlinereminder.domain.model.Event
+import com.example.offlinereminder.domain.model.EventDateTime
 import com.example.offlinereminder.domain.model.EventType
+import com.example.offlinereminder.domain.model.NotificationSchedule
+import com.example.offlinereminder.domain.model.NotificationTriggerType
+import com.example.offlinereminder.domain.model.ReminderDeliveryType
+import com.example.offlinereminder.domain.model.SoundReference
+import com.example.offlinereminder.domain.model.SoundSourceType
+import com.example.offlinereminder.domain.notification.AlarmScheduler
+import com.example.offlinereminder.domain.usecase.AddCustomSoundUseCase
 import com.example.offlinereminder.domain.usecase.CreateCategoryUseCase
+import com.example.offlinereminder.domain.usecase.CreateEventUseCase
 import com.example.offlinereminder.domain.usecase.CreateEventTypeUseCase
 import com.example.offlinereminder.domain.usecase.DeleteCategoryUseCase
+import com.example.offlinereminder.domain.usecase.DeleteCustomSoundUseCase
 import com.example.offlinereminder.domain.usecase.DeleteEventTypeUseCase
 import com.example.offlinereminder.domain.usecase.ExportBackupUseCase
 import com.example.offlinereminder.domain.usecase.GetCategoriesUseCase
+import com.example.offlinereminder.domain.usecase.GetCustomSoundsUseCase
 import com.example.offlinereminder.domain.usecase.GetEventTypesUseCase
 import com.example.offlinereminder.domain.usecase.GetSettingsUseCase
 import com.example.offlinereminder.domain.usecase.ResetSettingsUseCase
@@ -25,11 +39,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.time.Duration
+import java.util.UUID
 
 /**
- * ViewModel managing App Settings, Taxonomy Management, and Backup/Restore.
+ * ViewModel managing App Settings, Taxonomy Management, Notifications & Alarms, and Backup/Restore.
  */
 class SettingsViewModel(
     private val getSettingsUseCase: GetSettingsUseCase,
@@ -45,7 +62,14 @@ class SettingsViewModel(
     private val deleteEventTypeUseCase: DeleteEventTypeUseCase,
     private val exportBackupUseCase: ExportBackupUseCase,
     private val restoreBackupUseCase: RestoreBackupUseCase,
-    private val dispatcherProvider: DispatcherProvider
+    private val dispatcherProvider: DispatcherProvider,
+    private val alarmScheduler: AlarmScheduler? = null,
+    private val getCustomSoundsUseCase: GetCustomSoundsUseCase? = null,
+    private val addCustomSoundUseCase: AddCustomSoundUseCase? = null,
+    private val deleteCustomSoundUseCase: DeleteCustomSoundUseCase? = null,
+    private val customSoundStorage: CustomSoundStorage? = null,
+    private val createEventUseCase: CreateEventUseCase? = null,
+    private val timeProvider: TimeProvider? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -55,6 +79,8 @@ class SettingsViewModel(
         observeSettings()
         observeCategories()
         observeEventTypes()
+        observeCustomSounds()
+        refreshCapabilities(true)
     }
 
     private fun observeSettings() {
@@ -77,6 +103,15 @@ class SettingsViewModel(
         viewModelScope.launch(dispatcherProvider.io) {
             getEventTypesUseCase().collect { types ->
                 _uiState.update { it.copy(eventTypes = types) }
+            }
+        }
+    }
+
+    private fun observeCustomSounds() {
+        val useCase = getCustomSoundsUseCase ?: return
+        viewModelScope.launch(dispatcherProvider.io) {
+            useCase().collect { sounds ->
+                _uiState.update { it.copy(customSounds = sounds) }
             }
         }
     }
@@ -108,7 +143,7 @@ class SettingsViewModel(
                 updateSettings { it.copy(defaultSnoozeDurationMinutes = action.minutes) }
             }
 
-            // Notifications & Quiet Hours
+            // Notifications & Alarms
             is SettingsAction.ToggleSound -> {
                 updateSettings { it.copy(soundEnabled = action.enabled) }
             }
@@ -117,6 +152,44 @@ class SettingsViewModel(
             }
             is SettingsAction.UpdateQuietHours -> {
                 updateSettings { it.copy(quietHours = action.quietHours) }
+            }
+            is SettingsAction.ToggleNotificationsEnabled -> {
+                updateSettings { it.copy(notificationsEnabled = action.enabled) }
+            }
+            is SettingsAction.ToggleAlarmModeEnabled -> {
+                updateSettings { it.copy(alarmModeEnabled = action.enabled) }
+            }
+            is SettingsAction.UpdateNotificationSound -> {
+                updateSettings { it.copy(notificationSound = action.sound) }
+            }
+            is SettingsAction.UpdateAlarmSound -> {
+                updateSettings { it.copy(alarmSound = action.sound) }
+            }
+            is SettingsAction.RefreshCapabilities -> {
+                refreshCapabilities(action.areNotificationsEnabled)
+            }
+            is SettingsAction.AddCustomSound -> {
+                addCustomSound(
+                    title = action.title,
+                    fileName = action.fileName,
+                    mimeType = action.mimeType,
+                    fileSizeBytes = action.fileSizeBytes,
+                    inputStream = action.inputStream,
+                    applyToNotification = action.applyToNotification,
+                    applyToAlarm = action.applyToAlarm
+                )
+            }
+            is SettingsAction.DeleteCustomSound -> {
+                deleteCustomSound(action.soundId)
+            }
+            is SettingsAction.PreviewSound -> {
+                _uiState.update { it.copy(previewingSoundType = action.type) }
+            }
+            is SettingsAction.StopPreviewSound -> {
+                _uiState.update { it.copy(previewingSoundType = null) }
+            }
+            is SettingsAction.ScheduleTestNotification -> {
+                scheduleTestNotification(action.isAlarm)
             }
 
             // Reset
@@ -140,6 +213,139 @@ class SettingsViewModel(
             }
             is SettingsAction.DismissMessages -> {
                 _uiState.update { it.copy(successMessage = null, errorMessage = null) }
+            }
+        }
+    }
+
+    fun refreshCapabilities(areNotificationsEnabled: Boolean) {
+        val exactAllowed = alarmScheduler?.canScheduleExactAlarms() ?: true
+        _uiState.update {
+            it.copy(
+                isNotificationAllowed = areNotificationsEnabled,
+                isExactAlarmAllowed = exactAllowed
+            )
+        }
+    }
+
+    private fun addCustomSound(
+        title: String,
+        fileName: String,
+        mimeType: String,
+        fileSizeBytes: Long,
+        inputStream: InputStream,
+        applyToNotification: Boolean,
+        applyToAlarm: Boolean
+    ) {
+        val storage = customSoundStorage
+        val addUseCase = addCustomSoundUseCase
+        if (storage == null || addUseCase == null) {
+            _uiState.update { it.copy(errorMessage = "Custom sound storage not available") }
+            return
+        }
+
+        viewModelScope.launch(dispatcherProvider.io) {
+            try {
+                val ext = fileName.substringAfterLast('.', "").lowercase()
+                val allowedExtensions = setOf("mp3", "wav", "ogg", "m4a", "aac", "flac", "opus")
+                if (ext !in allowedExtensions && !mimeType.startsWith("audio/")) {
+                    _uiState.update { it.copy(errorMessage = "Unsupported audio format: .$ext. Allowed: mp3, wav, ogg, m4a, aac, flac, opus") }
+                    return@launch
+                }
+                if (fileSizeBytes <= 0 || fileSizeBytes > 25 * 1024 * 1024) {
+                    _uiState.update { it.copy(errorMessage = "File size must be between 1 byte and 25 MB") }
+                    return@launch
+                }
+
+                val safeFileName = "${UUID.randomUUID()}_${File(fileName).name}"
+                storage.copySound(inputStream, safeFileName)
+
+                when (val result = addUseCase(
+                    title = title.ifBlank { fileName.substringBeforeLast('.') },
+                    fileName = safeFileName,
+                    mimeType = mimeType.ifBlank { "audio/*" },
+                    fileSizeBytes = fileSizeBytes
+                )) {
+                    is Result.Success -> {
+                        val soundMeta = result.data
+                        val soundRef = SoundReference(
+                            type = SoundSourceType.CUSTOM,
+                            customSoundId = soundMeta.id
+                        )
+                        if (applyToNotification) {
+                            updateSettings { it.copy(notificationSound = soundRef) }
+                        }
+                        if (applyToAlarm) {
+                            updateSettings { it.copy(alarmSound = soundRef) }
+                        }
+                        _uiState.update { it.copy(successMessage = "Custom sound '${soundMeta.title}' added successfully!") }
+                    }
+                    is Result.Failure -> {
+                        storage.deleteSound(safeFileName)
+                        _uiState.update { it.copy(errorMessage = "Failed to save sound metadata: ${result.error.message}") }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "Error importing sound file: ${e.message}") }
+            }
+        }
+    }
+
+    private fun deleteCustomSound(soundId: String) {
+        val deleteUseCase = deleteCustomSoundUseCase ?: return
+        viewModelScope.launch(dispatcherProvider.io) {
+            when (val r = deleteUseCase(soundId)) {
+                is Result.Success -> {
+                    updateSettings { s ->
+                        var updated = s
+                        if (s.notificationSound.customSoundId == soundId) {
+                            updated = updated.copy(notificationSound = SoundReference(SoundSourceType.DEFAULT))
+                        }
+                        if (s.alarmSound.customSoundId == soundId) {
+                            updated = updated.copy(alarmSound = SoundReference(SoundSourceType.DEFAULT))
+                        }
+                        updated
+                    }
+                    _uiState.update { it.copy(successMessage = "Custom sound removed") }
+                }
+                is Result.Failure -> {
+                    _uiState.update { it.copy(errorMessage = "Cannot delete sound: ${r.error.message}") }
+                }
+            }
+        }
+    }
+
+    private fun scheduleTestNotification(isAlarm: Boolean) {
+        val createUseCase = createEventUseCase ?: return
+        val tp = timeProvider ?: return
+        viewModelScope.launch(dispatcherProvider.io) {
+            val nowLdt = tp.nowLocalDateTime()
+            val targetTime = nowLdt.plusSeconds(5)
+            val schedule = NotificationSchedule(
+                offsetDuration = Duration.ZERO,
+                triggerType = NotificationTriggerType.AT_START,
+                deliveryType = if (isAlarm) ReminderDeliveryType.ALARM else ReminderDeliveryType.NOTIFICATION
+            )
+            val event = Event(
+                id = UUID.randomUUID().toString(),
+                title = if (isAlarm) "Test Alarm" else "Test Notification",
+                description = "Planerize verification alert (5s delay)",
+                eventTypeId = _uiState.value.eventTypes.firstOrNull()?.id ?: "type_general",
+                categoryId = _uiState.value.categories.firstOrNull()?.id ?: "cat_general",
+                temporal = EventDateTime.DateTime(
+                    dateTime = targetTime,
+                    zoneId = tp.systemZoneId()
+                ),
+                notificationSchedules = listOf(schedule),
+                createdAt = tp.nowInstant(),
+                updatedAt = tp.nowInstant()
+            )
+            when (val r = createUseCase(event)) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(successMessage = if (isAlarm) "Test alarm scheduled for 5s from now! Lock phone or wait." else "Test notification scheduled for 5s from now! Lock phone or wait.") }
+                }
+                is Result.Failure -> {
+                    _uiState.update { it.copy(errorMessage = "Failed to schedule test: ${r.error.message}") }
+                }
             }
         }
     }
@@ -218,7 +424,7 @@ class SettingsViewModel(
         viewModelScope.launch(dispatcherProvider.io) {
             when (val res = createEventTypeUseCase(name, categoryId, key, defaultIcon, defaultColor)) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(successMessage = "Event type '${res.data.name}' created") }
+                    _uiState.update { it.copy(successMessage = "Event Type '${res.data.name}' created") }
                 }
                 is Result.Failure -> {
                     _uiState.update { it.copy(errorMessage = res.error.message ?: "Failed to create event type") }
@@ -231,7 +437,7 @@ class SettingsViewModel(
         viewModelScope.launch(dispatcherProvider.io) {
             when (val res = updateEventTypeUseCase(eventType)) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(successMessage = "Event type updated") }
+                    _uiState.update { it.copy(successMessage = "Event Type updated") }
                 }
                 is Result.Failure -> {
                     _uiState.update { it.copy(errorMessage = res.error.message ?: "Failed to update event type") }
@@ -244,7 +450,7 @@ class SettingsViewModel(
         viewModelScope.launch(dispatcherProvider.io) {
             when (val res = deleteEventTypeUseCase(eventTypeId)) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(successMessage = "Event type deleted") }
+                    _uiState.update { it.copy(successMessage = "Event Type deleted") }
                 }
                 is Result.Failure -> {
                     _uiState.update { it.copy(errorMessage = res.error.message ?: "Failed to delete event type") }
@@ -255,24 +461,22 @@ class SettingsViewModel(
 
     private fun exportBackup(outputStream: OutputStream) {
         viewModelScope.launch(dispatcherProvider.io) {
-            _uiState.update { it.copy(isLoading = true, isExporting = true, errorMessage = null, successMessage = null) }
+            _uiState.update { it.copy(isExporting = true, successMessage = null, errorMessage = null) }
             when (val res = exportBackupUseCase(outputStream)) {
                 is Result.Success -> {
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
                             isExporting = false,
                             lastExportResult = res.data,
-                            successMessage = "Backup exported successfully (${res.data.totalEvents} reminders, ${res.data.archiveSizeBytes} bytes)."
+                            successMessage = "Backup exported successfully: ${res.data.totalEvents} events, ${res.data.totalCategories} categories"
                         )
                     }
                 }
                 is Result.Failure -> {
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
                             isExporting = false,
-                            errorMessage = "Export failed: ${res.error.message}"
+                            errorMessage = res.error.message ?: "Backup export failed"
                         )
                     }
                 }
@@ -282,24 +486,22 @@ class SettingsViewModel(
 
     private fun importBackup(inputStream: InputStream, strategy: RestoreStrategy) {
         viewModelScope.launch(dispatcherProvider.io) {
-            _uiState.update { it.copy(isLoading = true, isImporting = true, errorMessage = null, successMessage = null) }
+            _uiState.update { it.copy(isImporting = true, successMessage = null, errorMessage = null) }
             when (val res = restoreBackupUseCase(inputStream, strategy)) {
                 is Result.Success -> {
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
                             isImporting = false,
                             lastRestoreSummary = res.data,
-                            successMessage = "Backup restored successfully (${res.data.eventsRestored} reminders, ${res.data.categoriesRestored} categories, ${res.data.groupsRestored} groups)."
+                            successMessage = "Backup restored successfully: ${res.data.eventsRestored} events, ${res.data.categoriesRestored} categories"
                         )
                     }
                 }
                 is Result.Failure -> {
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
                             isImporting = false,
-                            errorMessage = "Restore failed: ${res.error.message}"
+                            errorMessage = res.error.message ?: "Backup import failed"
                         )
                     }
                 }

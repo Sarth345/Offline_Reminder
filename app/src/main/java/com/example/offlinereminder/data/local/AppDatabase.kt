@@ -23,6 +23,7 @@ import com.example.offlinereminder.data.local.dao.NotificationProfileDao
 import com.example.offlinereminder.data.local.dao.NotificationScheduleDao
 import com.example.offlinereminder.data.local.dao.OccurrenceExceptionDao
 import com.example.offlinereminder.data.local.dao.RestoreOperationDao
+import com.example.offlinereminder.data.local.dao.SavedLocationDao
 import com.example.offlinereminder.data.local.dao.TagDao
 import com.example.offlinereminder.data.local.entity.AttachmentEntity
 import com.example.offlinereminder.data.local.entity.CategoryEntity
@@ -42,6 +43,7 @@ import com.example.offlinereminder.data.local.entity.NotificationProfileEntity
 import com.example.offlinereminder.data.local.entity.NotificationScheduleEntity
 import com.example.offlinereminder.data.local.entity.OccurrenceExceptionEntity
 import com.example.offlinereminder.data.local.entity.RestoreOperationEntity
+import com.example.offlinereminder.data.local.entity.SavedLocationEntity
 import com.example.offlinereminder.data.local.entity.TagEntity
 
 @Database(
@@ -64,9 +66,10 @@ import com.example.offlinereminder.data.local.entity.TagEntity
         RestoreOperationEntity::class,
         CustomSoundEntity::class,
         NotificationProfileEntity::class,
-        EventTemplateEntity::class
+        EventTemplateEntity::class,
+        SavedLocationEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(RoomTypeConverters::class)
@@ -88,6 +91,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun customSoundDao(): CustomSoundDao
     abstract fun notificationProfileDao(): NotificationProfileDao
     abstract fun eventTemplateDao(): EventTemplateDao
+    abstract fun savedLocationDao(): SavedLocationDao
 
     companion object {
         const val DATABASE_NAME = "offline_reminder.db"
@@ -211,13 +215,76 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `saved_locations` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `name` TEXT NOT NULL,
+                        `address` TEXT NOT NULL,
+                        `building` TEXT NOT NULL,
+                        `room` TEXT NOT NULL,
+                        `latitude` REAL,
+                        `longitude` REAL,
+                        `notes` TEXT NOT NULL,
+                        `is_favorite` INTEGER NOT NULL,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_saved_locations_name` ON `saved_locations` (`name`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_saved_locations_is_favorite` ON `saved_locations` (`is_favorite`)")
+            }
+        }
+
+        val PREPOPULATE_CALLBACK: RoomDatabase.Callback = object : RoomDatabase.Callback() {
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                super.onCreate(db)
+                seedDefaults(db)
+            }
+
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                super.onOpen(db)
+                seedDefaults(db)
+            }
+
+            private fun seedDefaults(db: SupportSQLiteDatabase) {
+                val now = System.currentTimeMillis()
+                // Default Categories
+                db.execSQL("INSERT OR IGNORE INTO categories (id, name, color, icon, is_custom, sort_order) VALUES ('cat_general', 'General', -12419084, NULL, 0, 0)")
+                db.execSQL("INSERT OR IGNORE INTO categories (id, name, color, icon, is_custom, sort_order) VALUES ('cat_work', 'Work', -1429995, NULL, 0, 1)")
+                db.execSQL("INSERT OR IGNORE INTO categories (id, name, color, icon, is_custom, sort_order) VALUES ('cat_personal', 'Personal', -13326285, NULL, 0, 2)")
+                db.execSQL("INSERT OR IGNORE INTO categories (id, name, color, icon, is_custom, sort_order) VALUES ('cat_health', 'Health', -6543440, NULL, 0, 3)")
+                db.execSQL("INSERT OR IGNORE INTO categories (id, name, color, icon, is_custom, sort_order) VALUES ('cat_finance', 'Finance', -279291, NULL, 0, 4)")
+                db.execSQL("INSERT OR IGNORE INTO categories (id, name, color, icon, is_custom, sort_order) VALUES ('cat_education', 'Education', -16738680, NULL, 0, 5)")
+                db.execSQL("INSERT OR IGNORE INTO categories (id, name, color, icon, is_custom, sort_order) VALUES ('cat_travel', 'Travel', -36797, NULL, 0, 6)")
+
+                // Default Event Types
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_general', 'General', 'general_reminder', 'cat_general', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_task', 'Task', 'task', 'cat_general', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_meeting', 'Meeting', 'meeting', 'cat_work', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_deadline', 'Deadline', 'deadline', 'cat_work', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_birthday', 'Birthday', 'birthday', 'cat_personal', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_anniversary', 'Anniversary', 'anniversary', 'cat_personal', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_doctor', 'Doctor', 'doctor_appointment', 'cat_health', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_medication', 'Medication', 'medication', 'cat_health', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_bill', 'Bill', 'bill_payment', 'cat_finance', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_rent', 'Rent / EMI', 'rent_emi', 'cat_finance', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_exam', 'Exam', 'exam_assignment', 'cat_education', NULL, NULL, '[]', 0, 0, $now)")
+                db.execSQL("INSERT OR IGNORE INTO event_types (id, name, key, category_id, default_color, default_icon, aliases, is_custom, is_pinned, created_at) VALUES ('type_travel', 'Travel', 'travel_trip', 'cat_travel', NULL, NULL, '[]', 0, 0, $now)")
+            }
+        }
+
         fun buildDatabase(context: Context): AppDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addCallback(PREPOPULATE_CALLBACK)
             .build()
         }
     }

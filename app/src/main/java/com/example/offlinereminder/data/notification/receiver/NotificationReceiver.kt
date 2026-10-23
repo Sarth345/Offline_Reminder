@@ -3,6 +3,7 @@ package com.example.offlinereminder.data.notification.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.example.offlinereminder.OfflineReminderApplication
 import com.example.offlinereminder.data.alarm.AlarmPlaybackService
 import com.example.offlinereminder.data.alarm.AlarmState
@@ -39,9 +40,16 @@ import java.time.LocalTime
 class NotificationReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val instanceId = intent.getStringExtra(NotificationConstants.EXTRA_INSTANCE_ID) ?: return
-        val eventId = intent.getStringExtra(NotificationConstants.EXTRA_EVENT_ID) ?: return
+        val instanceId = intent.getStringExtra(NotificationConstants.EXTRA_INSTANCE_ID) ?: run {
+            Log.w(TAG, "onReceive aborted: missing EXTRA_INSTANCE_ID")
+            return
+        }
+        val eventId = intent.getStringExtra(NotificationConstants.EXTRA_EVENT_ID) ?: run {
+            Log.w(TAG, "onReceive aborted: missing EXTRA_EVENT_ID")
+            return
+        }
 
+        Log.d(TAG, "onReceive triggered for instanceId='$instanceId', eventId='$eventId'")
         val pendingResult = goAsync()
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -49,14 +57,15 @@ class NotificationReceiver : BroadcastReceiver() {
                 val db = databaseOverride ?: try {
                     (context.applicationContext as? OfflineReminderApplication)?.container?.database
                         ?: AppDatabase.buildDatabase(context.applicationContext)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error obtaining database instance in NotificationReceiver", e)
                     AppDatabase.buildDatabase(context.applicationContext)
                 }
 
                 val instanceEntity = db.notificationInstanceDao().getById(instanceId)
                 val terminalStatuses = setOf("CANCELLED", "DISMISSED", "COMPLETED", "DELIVERED", "TIMED_OUT")
                 if (instanceEntity == null || terminalStatuses.contains(instanceEntity.status)) {
-                    // Prevent duplicate delivery and do not resurrect terminal states
+                    Log.d(TAG, "Dropping trigger: instance is null or in terminal state: ${instanceEntity?.status}")
                     return@launch
                 }
 
@@ -64,7 +73,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     AlarmStateManager.getInstance().currentState() == AlarmState.RINGING &&
                     AlarmStateManager.getInstance().currentInstanceId() == instanceId
                 ) {
-                    // Already actively ringing this instance; ignore duplicate trigger
+                    Log.d(TAG, "Dropping duplicate trigger: already actively ringing instance '$instanceId'")
                     return@launch
                 }
 
@@ -72,6 +81,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 if (eventAggregate == null ||
                     eventAggregate.event.lifecycleStatus == EventLifecycleStatus.TRASHED
                 ) {
+                    Log.d(TAG, "Dropping trigger and cancelling instance: event is null or trashed")
                     db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.CANCELLED.name)
                     return@launch
                 }
@@ -88,6 +98,7 @@ class NotificationReceiver : BroadcastReceiver() {
                         matchingException.status == OccurrenceStatus.SKIPPED ||
                         matchingException.status == OccurrenceStatus.EXCLUDED)
                 ) {
+                    Log.d(TAG, "Dropping trigger: occurrence exception status is ${matchingException.status}")
                     db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.CANCELLED.name)
                     return@launch
                 }
@@ -103,25 +114,40 @@ class NotificationReceiver : BroadcastReceiver() {
 
                 val settings = try {
                     (context.applicationContext as? OfflineReminderApplication)?.container?.settingsRepository?.getSettings()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not load settings in NotificationReceiver", e)
                     null
                 }
 
                 // Resolve effective parameters
-                val deliveryType = schedule?.deliveryType ?: profile?.deliveryType ?: ReminderDeliveryType.NOTIFICATION
+                var deliveryType = schedule?.deliveryType ?: profile?.deliveryType ?: ReminderDeliveryType.NOTIFICATION
+                if (deliveryType == ReminderDeliveryType.ALARM && settings?.alarmModeEnabled == false) {
+                    Log.d(TAG, "Alarm mode is disabled in settings. Downgrading to notification.")
+                    deliveryType = ReminderDeliveryType.NOTIFICATION
+                }
+
+                val defaultSoundForMode = if (deliveryType == ReminderDeliveryType.ALARM) {
+                    settings?.alarmSound ?: SoundReference(SoundSourceType.DEFAULT)
+                } else {
+                    settings?.notificationSound ?: SoundReference(SoundSourceType.DEFAULT)
+                }
 
                 val rawSound = when {
-                    schedule != null && (schedule.sound.type != SoundSourceType.DEFAULT || schedule.profileId == null) -> schedule.sound
-                    profile != null -> profile.sound
-                    else -> SoundReference(SoundSourceType.DEFAULT)
+                    schedule != null && (schedule.sound.type != SoundSourceType.DEFAULT || schedule.profileId == null) -> {
+                        if (schedule.sound.type == SoundSourceType.DEFAULT) defaultSoundForMode else schedule.sound
+                    }
+                    profile != null -> {
+                        if (profile.sound.type == SoundSourceType.DEFAULT) defaultSoundForMode else profile.sound
+                    }
+                    else -> defaultSoundForMode
                 }
 
                 val vibrationEnabled = profile?.vibrationEnabled ?: settings?.vibrationEnabled ?: true
-                val snoozeMinutes = profile?.defaultSnoozeDurationMinutes ?: settings?.defaultSnoozeDurationMinutes ?: 10
+                val snoozeMinutes = profile?.defaultSnoozeDurationMinutes ?: settings?.defaultSnoozeDurationMinutes ?: 15
 
                 val isSilentExtra = intent.getBooleanExtra(NotificationConstants.EXTRA_IS_SILENT, false) ||
                     intent.getStringExtra(NotificationConstants.EXTRA_IS_SILENT)?.toBoolean() == true
-                var isSilent = isSilentExtra || (settings?.soundEnabled == false)
+                var isSilent = isSilentExtra || (settings?.soundEnabled == false) || (rawSound.type == SoundSourceType.SILENT)
 
                 val quietHours = settings?.quietHours
                 if (quietHours != null && quietHours.enabled) {
@@ -139,6 +165,7 @@ class NotificationReceiver : BroadcastReceiver() {
 
                 // Branch by delivery type
                 if (deliveryType == ReminderDeliveryType.ALARM) {
+                    Log.d(TAG, "Executing ALARM delivery for '${eventAggregate.event.title}', sound=$effectiveSound")
                     // Update authoritative Room status to RINGING (active alarm session)
                     db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.RINGING.name)
 
@@ -154,6 +181,7 @@ class NotificationReceiver : BroadcastReceiver() {
                             snoozeDurationMinutes = snoozeMinutes
                         )
                     } catch (e: Exception) {
+                        Log.w(TAG, "AlarmPlaybackService.start failed, falling back to NotificationPoster", e)
                         // In case of foreground service start failure, gracefully fallback to notification poster
                         val poster = NotificationPoster(context)
                         poster.postNotification(
@@ -168,7 +196,14 @@ class NotificationReceiver : BroadcastReceiver() {
                         db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.DELIVERED.name)
                     }
                 } else {
-                    // Normal notification mode: mark DELIVERED and post notification
+                    // Normal notification mode: check if notifications enabled in settings
+                    if (settings?.notificationsEnabled == false) {
+                        Log.d(TAG, "Notifications are disabled in settings. Skipping post.")
+                        db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.DELIVERED.name)
+                        return@launch
+                    }
+
+                    Log.d(TAG, "Executing NOTIFICATION delivery for '${eventAggregate.event.title}', sound=$effectiveSound")
                     db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.DELIVERED.name)
 
                     val poster = NotificationPoster(context)
@@ -182,8 +217,8 @@ class NotificationReceiver : BroadcastReceiver() {
                         snoozeDurationMinutes = snoozeMinutes
                     )
                 }
-            } catch (ignored: Exception) {
-                // Failsafe execution
+            } catch (e: Exception) {
+                Log.e(TAG, "Unhandled exception in NotificationReceiver", e)
             } finally {
                 pendingResult?.finish()
             }
@@ -191,6 +226,8 @@ class NotificationReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val TAG = "PlanerizeReceiver"
+
         @Volatile
         var databaseOverride: AppDatabase? = null
     }

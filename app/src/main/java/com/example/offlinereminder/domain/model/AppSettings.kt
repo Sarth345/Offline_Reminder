@@ -32,8 +32,13 @@ data class AppSettings(
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     val defaultEventPriority: Priority = Priority.NORMAL,
     val defaultEventDurationMinutes: Int = 60,
-    val defaultSnoozeDurationMinutes: Int = 10,
+    val defaultSnoozeDurationMinutes: Int = 15,
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
-    val quietHours: QuietHours = QuietHours()
+    val quietHours: QuietHours = QuietHours(),
+    val appLock: AppLockSettings = AppLockSettings(),
+    val notificationsEnabled: Boolean = true,
+    val alarmModeEnabled: Boolean = true,
+    val notificationSound: SoundReference = SoundReference(SoundSourceType.DEFAULT),
+    val alarmSound: SoundReference = SoundReference(SoundSourceType.DEFAULT)
 )

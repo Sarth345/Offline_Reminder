@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.example.offlinereminder.OfflineReminderApplication
 import com.example.offlinereminder.core.time.SystemTimeProvider
@@ -68,9 +69,12 @@ class AlarmPlaybackService : Service() {
         val instanceId = intent.getStringExtra(NotificationConstants.EXTRA_INSTANCE_ID)
         val eventId = intent.getStringExtra(NotificationConstants.EXTRA_EVENT_ID)
 
+        Log.d("PlanerizeAlarm", "onStartCommand: action=$action, instanceId=$instanceId, eventId=$eventId")
+
         when (action) {
             NotificationConstants.ACTION_START_ALARM -> {
                 if (instanceId.isNullOrBlank()) {
+                    Log.w("PlanerizeAlarm", "ACTION_START_ALARM received with blank instanceId. Stopping service.")
                     stopSelf()
                     return START_NOT_STICKY
                 }
@@ -80,7 +84,7 @@ class AlarmPlaybackService : Service() {
                 handleDismissAlarm(instanceId)
             }
             NotificationConstants.ACTION_SNOOZE_ALARM -> {
-                val durationMillis = intent.getLongExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MILLIS, 10 * 60 * 1000L)
+                val durationMillis = intent.getLongExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MILLIS, 15 * 60 * 1000L)
                 handleSnoozeAlarm(instanceId, durationMillis)
             }
             NotificationConstants.ACTION_STOP_ALARM -> {
@@ -96,15 +100,22 @@ class AlarmPlaybackService : Service() {
 
     private fun handleStartAlarm(intent: Intent, instanceId: String, eventId: String?) {
         if (currentInstanceId == instanceId && stateManager.currentState() == AlarmState.RINGING) {
-            // Already actively ringing this instance; ignore duplicate start
+            Log.d("PlanerizeAlarm", "Instance '$instanceId' is already actively ringing. Ignoring duplicate start.")
             return
         }
 
         val db = getDatabase()
-        val instance = db.notificationInstanceDao().getByIdSync(instanceId)
+        val instance = try {
+            kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                db.notificationInstanceDao().getById(instanceId)
+            }
+        } catch (e: Exception) {
+            Log.w("PlanerizeAlarm", "Database status check failed for instance '$instanceId'", e)
+            null
+        }
         val terminalStatuses = setOf("DELIVERED", "DISMISSED", "CANCELLED", "TIMED_OUT", "COMPLETED")
         if (instance != null && terminalStatuses.contains(instance.status)) {
-            // Already delivered via fallback or in a terminal state; abort to prevent dual delivery
+            Log.d("PlanerizeAlarm", "Instance '$instanceId' is in terminal status '${instance.status}'. Aborting alarm start.")
             stopSelf()
             return
         }
@@ -116,9 +127,12 @@ class AlarmPlaybackService : Service() {
         val soundTypeStr = intent.getStringExtra(NotificationConstants.EXTRA_SOUND_TYPE)
         val customSoundId = intent.getStringExtra(NotificationConstants.EXTRA_CUSTOM_SOUND_ID)
         val systemUriString = intent.getStringExtra(NotificationConstants.EXTRA_SYSTEM_SOUND_URI)
+        val builtInSoundKey = intent.getStringExtra(NotificationConstants.EXTRA_BUILT_IN_SOUND_KEY)
         val vibrationEnabled = intent.getBooleanExtra(NotificationConstants.EXTRA_VIBRATION_ENABLED, true)
-        val snoozeDurationMinutes = intent.getIntExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MINUTES, 10)
+        val snoozeDurationMinutes = intent.getIntExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MINUTES, 15)
         currentEventTitle = eventTitle
+
+        Log.d("PlanerizeAlarm", "handleStartAlarm for '$eventTitle' (id: $instanceId, soundType: $soundTypeStr, snooze: ${snoozeDurationMinutes}m)")
 
         // 1. Post foreground notification immediately
         val foregroundNotification = poster.buildAlarmForegroundNotification(
@@ -140,13 +154,13 @@ class AlarmPlaybackService : Service() {
         stateManager.transitionTo(instanceId, eventId, AlarmState.RINGING)
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val db = getDatabase()
                 db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.RINGING.name)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("PlanerizeAlarm", "Database status update failed for instance '$instanceId'", e)
             }
         }
 
-        // 3. Resolve and play audio via RingtonePlayer
+        // 4. Resolve and play audio via RingtonePlayer
         val soundType = try {
             if (soundTypeStr != null) SoundSourceType.valueOf(soundTypeStr) else SoundSourceType.DEFAULT
         } catch (_: Exception) {
@@ -155,16 +169,17 @@ class AlarmPlaybackService : Service() {
         val soundRef = SoundReference(
             type = soundType,
             customSoundId = customSoundId,
-            systemUriString = systemUriString
+            systemUriString = systemUriString,
+            builtInSoundKey = builtInSoundKey
         )
         ringtonePlayer.play(soundRef, isLooping = true)
 
-        // 4. Start vibration if enabled
+        // 5. Start vibration if enabled
         if (vibrationEnabled) {
             startVibrating()
         }
 
-        // 5. Schedule deterministic 10-minute timeout
+        // 6. Schedule deterministic 10-minute timeout
         timeoutJob?.cancel()
         timeoutJob = serviceScope.launch {
             delay(NotificationConstants.ALARM_TIMEOUT_MILLIS)
@@ -330,6 +345,7 @@ class AlarmPlaybackService : Service() {
                 putExtra(NotificationConstants.EXTRA_SOUND_TYPE, sound.type.name)
                 putExtra(NotificationConstants.EXTRA_CUSTOM_SOUND_ID, sound.customSoundId)
                 putExtra(NotificationConstants.EXTRA_SYSTEM_SOUND_URI, sound.systemUriString)
+                putExtra(NotificationConstants.EXTRA_BUILT_IN_SOUND_KEY, sound.builtInSoundKey)
                 putExtra(NotificationConstants.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
                 putExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MINUTES, snoozeDurationMinutes)
             }
@@ -357,7 +373,7 @@ class AlarmPlaybackService : Service() {
             context.startService(intent)
         }
 
-        fun snooze(context: Context, instanceId: String, eventId: String? = null, durationMillis: Long = 10 * 60 * 1000L) {
+        fun snooze(context: Context, instanceId: String, eventId: String? = null, durationMillis: Long = 15 * 60 * 1000L) {
             val intent = Intent(context, AlarmPlaybackService::class.java).apply {
                 action = NotificationConstants.ACTION_SNOOZE_ALARM
                 putExtra(NotificationConstants.EXTRA_INSTANCE_ID, instanceId)

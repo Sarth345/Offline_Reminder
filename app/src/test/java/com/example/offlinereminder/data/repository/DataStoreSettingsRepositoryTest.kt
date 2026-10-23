@@ -5,6 +5,8 @@ import com.example.offlinereminder.domain.model.DateFormatPreference
 import com.example.offlinereminder.domain.model.Priority
 import com.example.offlinereminder.domain.model.QuietHours
 import com.example.offlinereminder.domain.model.QuietHoursPolicy
+import com.example.offlinereminder.domain.model.SoundReference
+import com.example.offlinereminder.domain.model.SoundSourceType
 import com.example.offlinereminder.domain.model.ThemeMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,9 +46,13 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(DayOfWeek.MONDAY, settings.firstDayOfWeek)
         assertEquals(Priority.NORMAL, settings.defaultEventPriority)
         assertEquals(60, settings.defaultEventDurationMinutes)
-        assertEquals(10, settings.defaultSnoozeDurationMinutes)
+        assertEquals(15, settings.defaultSnoozeDurationMinutes)
         assertTrue(settings.soundEnabled)
         assertTrue(settings.vibrationEnabled)
+        assertTrue(settings.notificationsEnabled)
+        assertTrue(settings.alarmModeEnabled)
+        assertEquals(SoundSourceType.DEFAULT, settings.notificationSound.type)
+        assertEquals(SoundSourceType.DEFAULT, settings.alarmSound.type)
         assertFalse(settings.quietHours.enabled)
     }
 
@@ -117,9 +123,13 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(DayOfWeek.MONDAY, settings.firstDayOfWeek)
         assertEquals(Priority.NORMAL, settings.defaultEventPriority)
         assertEquals(60, settings.defaultEventDurationMinutes)
-        assertEquals(10, settings.defaultSnoozeDurationMinutes)
+        assertEquals(15, settings.defaultSnoozeDurationMinutes)
         assertTrue(settings.soundEnabled)
         assertTrue(settings.vibrationEnabled)
+        assertTrue(settings.notificationsEnabled)
+        assertTrue(settings.alarmModeEnabled)
+        assertEquals(SoundSourceType.DEFAULT, settings.notificationSound.type)
+        assertEquals(SoundSourceType.DEFAULT, settings.alarmSound.type)
         assertFalse(settings.quietHours.enabled)
     }
 
@@ -158,5 +168,36 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(Priority.CRITICAL, reloadedSettings.defaultEventPriority)
 
         scope2.cancel()
+    }
+
+    @Test
+    fun updateSettings_persistsSoundAndAlarmConfigurations() = runTest {
+        val file = File(tempFolder.root, "settings_sound.preferences_pb")
+        val dataStore = PreferenceDataStoreFactory.create(
+            scope = backgroundScope,
+            produceFile = { file }
+        )
+        val repository = DataStoreSettingsRepository(dataStore)
+
+        val customNotificationSound = SoundReference(type = SoundSourceType.SYSTEM, systemUriString = "content://media/internal/audio/media/42")
+        val customAlarmSound = SoundReference(type = SoundSourceType.SYSTEM, systemUriString = "content://media/internal/audio/media/99")
+
+        val updateRes = repository.updateSettings { current ->
+            current.copy(
+                notificationsEnabled = false,
+                alarmModeEnabled = false,
+                defaultSnoozeDurationMinutes = 30,
+                notificationSound = customNotificationSound,
+                alarmSound = customAlarmSound
+            )
+        }
+        assertTrue(updateRes.isSuccess)
+
+        val updated = repository.getSettings()
+        assertFalse(updated.notificationsEnabled)
+        assertFalse(updated.alarmModeEnabled)
+        assertEquals(30, updated.defaultSnoozeDurationMinutes)
+        assertEquals(customNotificationSound, updated.notificationSound)
+        assertEquals(customAlarmSound, updated.alarmSound)
     }
 }

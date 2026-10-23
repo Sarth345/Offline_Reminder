@@ -10,6 +10,7 @@ import com.example.offlinereminder.domain.recurrence.RecurrenceEngine
 import com.example.offlinereminder.domain.repository.EventRepository
 import com.example.offlinereminder.domain.repository.OccurrenceExceptionRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 /**
@@ -32,14 +33,22 @@ class GetDashboardOccurrencesUseCase(
     operator fun invoke(
         lookbackDays: Long = 14,
         lookaheadDays: Long = 14
-    ): Flow<DashboardOccurrences> = eventRepository.getAllActiveEvents().map { events ->
+    ): Flow<DashboardOccurrences> = combine(
+        eventRepository.getAllActiveEvents(),
+        occurrenceExceptionRepository.getAllExceptionsFlow()
+    ) { events, allExceptions ->
         val nowLdt = timeProvider.nowLocalDateTime()
         val today = timeProvider.nowLocalDate()
         val tomorrow = today.plusDays(1)
         val from = nowLdt.minusDays(lookbackDays)
         val to = nowLdt.plusDays(lookaheadDays)
 
-        val exceptions = occurrenceExceptionRepository.getExceptionsInRange(from, to)
+        val exceptions = allExceptions.filter { exc ->
+            val start = exc.originalStartDateTime
+            val resched = exc.rescheduledStartDateTime
+            (!start.isBefore(from) && !start.isAfter(to)) ||
+                (resched != null && !resched.isBefore(from) && !resched.isAfter(to))
+        }
 
         val allItems = mutableListOf<EventOccurrenceWithEvent>()
         for (event in events) {

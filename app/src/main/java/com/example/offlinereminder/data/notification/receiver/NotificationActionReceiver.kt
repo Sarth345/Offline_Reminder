@@ -99,9 +99,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
                             extraDuration
                         } else {
                             val defaultMinutes = try {
-                                (context.applicationContext as? OfflineReminderApplication)?.container?.settingsRepository?.getSettings()?.defaultSnoozeDurationMinutes ?: 10
+                                (context.applicationContext as? OfflineReminderApplication)?.container?.settingsRepository?.getSettings()?.defaultSnoozeDurationMinutes ?: 15
                             } catch (_: Exception) {
-                                10
+                                15
                             }
                             defaultMinutes * 60 * 1000L
                         }

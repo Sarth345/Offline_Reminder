@@ -23,6 +23,7 @@ import com.example.offlinereminder.domain.backup.GroupBackupDto
 import com.example.offlinereminder.domain.backup.NotificationScheduleBackupDto
 import com.example.offlinereminder.domain.backup.OccurrenceExceptionBackupDto
 import com.example.offlinereminder.domain.backup.RestoreStrategy
+import com.example.offlinereminder.domain.backup.SavedLocationBackupDto
 import com.example.offlinereminder.domain.backup.TagBackupDto
 import com.example.offlinereminder.domain.backup.TemporalBackupDto
 import com.example.offlinereminder.domain.model.DependencyType
@@ -732,5 +733,115 @@ class RoomBackupRepositoryTest {
 
         val incomingCategory = db.categoryDao().getById("cat-incoming")
         assertEquals(null, incomingCategory)
+    }
+
+    @Test
+    fun restoreBackupPayload_savedLocations_roundTripAndStrategies() = runTest {
+        // Pre-populate saved location in DB
+        val localLoc = com.example.offlinereminder.data.local.entity.SavedLocationEntity(
+            id = "loc-local-1",
+            name = "Local Office",
+            address = "100 Market St",
+            building = "Bld 1",
+            room = "Room 101",
+            notes = "Local notes",
+            isFavorite = true,
+            createdAt = testInstant,
+            updatedAt = testInstant
+        )
+        db.savedLocationDao().insert(localLoc)
+
+        // Incoming backup payload with loc-local-1 (updated address) and loc-incoming-2
+        val incomingLoc1 = SavedLocationBackupDto(
+            id = "loc-local-1",
+            name = "Updated Office Name",
+            address = "200 Mission St",
+            building = "Bld 2",
+            room = "Room 202",
+            isFavorite = false,
+            createdAt = testInstant.toString(),
+            updatedAt = testInstant.toString()
+        )
+        val incomingLoc2 = SavedLocationBackupDto(
+            id = "loc-incoming-2",
+            name = "Coffee Corner",
+            address = "15 3rd St",
+            isFavorite = true,
+            createdAt = testInstant.toString(),
+            updatedAt = testInstant.toString()
+        )
+
+        val payload = BackupPayload(
+            backupVersion = BackupConstants.CURRENT_BACKUP_VERSION,
+            exportedAt = "2026-10-21T10:00:00Z",
+            savedLocations = listOf(incomingLoc1, incomingLoc2)
+        )
+
+        // Test MERGE_KEEP_EXISTING: keep local name and address for loc-local-1
+        val mergeKeepRes = repository.restoreBackupPayload(payload, RestoreStrategy.MERGE_KEEP_EXISTING)
+        assertTrue(mergeKeepRes.isSuccess)
+        val keepLoc1 = db.savedLocationDao().getById("loc-local-1")
+        assertEquals("Local Office", keepLoc1?.name)
+        assertEquals("100 Market St", keepLoc1?.address)
+        val newLoc2 = db.savedLocationDao().getById("loc-incoming-2")
+        assertNotNull(newLoc2)
+        assertEquals("Coffee Corner", newLoc2?.name)
+
+        // Test MERGE_OVERWRITE: overwrite loc-local-1 with incoming values
+        val mergeOverwriteRes = repository.restoreBackupPayload(payload, RestoreStrategy.MERGE_OVERWRITE)
+        assertTrue(mergeOverwriteRes.isSuccess)
+        val overwriteLoc1 = db.savedLocationDao().getById("loc-local-1")
+        assertEquals("Updated Office Name", overwriteLoc1?.name)
+        assertEquals("200 Mission St", overwriteLoc1?.address)
+
+        // Test REPLACE_ALL: clears existing and inserts payload
+        val replacePayload = BackupPayload(
+            backupVersion = BackupConstants.CURRENT_BACKUP_VERSION,
+            exportedAt = "2026-10-21T10:00:00Z",
+            savedLocations = listOf(incomingLoc2)
+        )
+        val replaceAllRes = repository.restoreBackupPayload(replacePayload, RestoreStrategy.REPLACE_ALL)
+        assertTrue(replaceAllRes.isSuccess)
+        val replacedLoc1 = db.savedLocationDao().getById("loc-local-1")
+        assertEquals(null, replacedLoc1)
+        val replacedLoc2 = db.savedLocationDao().getById("loc-incoming-2")
+        assertNotNull(replacedLoc2)
+        assertEquals("Coffee Corner", replacedLoc2?.name)
+    }
+
+    @Test
+    fun restoreBackupPayload_olderBackupWithoutSavedLocations_succeeds() = runTest {
+        // Pre-1.1 backup payload without savedLocations field
+        val olderJson = """
+            {
+                "backupVersion": 1,
+                "appVersion": "1.0.0",
+                "exportedAt": "2026-10-20T10:00:00Z",
+                "categories": [
+                    { "id": "cat-older", "name": "Legacy Category", "sortOrder": 0 }
+                ]
+            }
+        """.trimIndent()
+
+        val inStream = ByteArrayInputStream(olderJson.toByteArray(Charsets.UTF_8))
+        val res = repository.importBackupArchive(inStream, RestoreStrategy.MERGE_KEEP_EXISTING)
+        assertTrue(res.isSuccess)
+
+        val restoredCat = db.categoryDao().getById("cat-older")
+        assertNotNull(restoredCat)
+        assertEquals("Legacy Category", restoredCat?.name)
+    }
+
+    @Test
+    fun backupPayload_doesNotContainBiometricCredentials() {
+        val payload = BackupPayload(
+            backupVersion = BackupConstants.CURRENT_BACKUP_VERSION,
+            exportedAt = "2026-10-21T10:00:00Z"
+        )
+        val json = kotlinx.serialization.json.Json.encodeToString(BackupPayload.serializer(), payload)
+        assertTrue(!json.contains("biometric", ignoreCase = true))
+        assertTrue(!json.contains("password", ignoreCase = true))
+        assertTrue(!json.contains("pin", ignoreCase = true))
+        assertTrue(!json.contains("credential", ignoreCase = true))
     }
 }

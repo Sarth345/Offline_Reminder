@@ -65,7 +65,9 @@ class EventEditorViewModel(
     private val detectEventConflictsUseCase: DetectEventConflictsUseCase? = null,
     private val timeProvider: TimeProvider = SystemTimeProvider(),
     private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider(),
-    private val settingsRepository: SettingsRepository? = null
+    private val settingsRepository: SettingsRepository? = null,
+    private val editRecurringSeriesUseCase: com.example.offlinereminder.domain.usecase.EditRecurringSeriesUseCase? = null,
+    private val getSavedLocationsUseCase: com.example.offlinereminder.domain.usecase.GetSavedLocationsUseCase? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EventEditorUiState(isLoading = true))
@@ -87,7 +89,7 @@ class EventEditorViewModel(
             is EventEditorAction.UpdateNotes -> _uiState.update { it.copy(notes = action.notes) }
             is EventEditorAction.UpdateLocation -> _uiState.update { it.copy(locationDisplayName = action.locationName) }
             is EventEditorAction.UpdatePriority -> _uiState.update { it.copy(priority = action.priority) }
-            is EventEditorAction.SelectCategory -> _uiState.update { it.copy(categoryId = action.categoryId, validationError = null) }
+            is EventEditorAction.SelectCategory -> selectCategory(action.categoryId)
             is EventEditorAction.SelectEventType -> _uiState.update { it.copy(eventTypeId = action.eventTypeId, validationError = null) }
             is EventEditorAction.SearchEventType -> searchEventType(action.query)
             is EventEditorAction.SetDateMode -> setDateMode(action.mode)
@@ -104,6 +106,9 @@ class EventEditorViewModel(
             is EventEditorAction.ToggleTag -> toggleTag(action.tagId)
             is EventEditorAction.AddAttachment -> addAttachment(action.attachment)
             is EventEditorAction.RemoveAttachment -> removeAttachment(action.attachmentId)
+            is EventEditorAction.SelectSavedLocation -> _uiState.update { it.copy(locationDisplayName = action.savedLocation.name) }
+            is EventEditorAction.SaveRecurringSeries -> saveRecurringSeries(action.mode)
+            is EventEditorAction.DismissRecurringSeriesDialog -> _uiState.update { it.copy(showRecurringSeriesDialog = false, pendingEditedDraft = null) }
             is EventEditorAction.CheckConflicts -> checkConflicts()
             is EventEditorAction.SaveEvent -> saveEvent()
             is EventEditorAction.ClearError -> _uiState.update { it.copy(errorMessage = null, validationError = null) }
@@ -121,8 +126,15 @@ class EventEditorViewModel(
                 val templates = getEventTemplatesUseCase?.invoke()?.firstOrNull() ?: emptyList()
                 val profiles = getNotificationProfilesUseCase?.invoke()?.firstOrNull() ?: emptyList()
                 val sounds = getCustomSoundsUseCase?.invoke()?.firstOrNull() ?: emptyList()
+                val savedLocations = getSavedLocationsUseCase?.invoke()?.firstOrNull() ?: emptyList()
 
                 _uiState.update {
+                    val defaultCatId = if (it.categoryId.isBlank() && categories.isNotEmpty()) categories.first().id else it.categoryId
+                    val typesInCat = types.filter { t -> t.categoryId == defaultCatId }
+                    val defaultTypeId = if (it.eventTypeId.isBlank() && types.isNotEmpty()) {
+                        typesInCat.firstOrNull()?.id ?: types.first().id
+                    } else it.eventTypeId
+
                     it.copy(
                         isLoading = false,
                         availableCategories = categories,
@@ -133,8 +145,9 @@ class EventEditorViewModel(
                         availableTemplates = templates,
                         availableNotificationProfiles = profiles,
                         availableCustomSounds = sounds,
-                        categoryId = if (it.categoryId.isBlank() && categories.isNotEmpty()) categories.first().id else it.categoryId,
-                        eventTypeId = if (it.eventTypeId.isBlank() && types.isNotEmpty()) types.first().id else it.eventTypeId
+                        availableSavedLocations = savedLocations,
+                        categoryId = defaultCatId,
+                        eventTypeId = defaultTypeId
                     )
                 }
             }.catch { error ->
@@ -227,6 +240,13 @@ class EventEditorViewModel(
             }
 
             _uiState.update {
+                val types = it.availableEventTypes
+                val catId = it.categoryId
+                val typesInCat = types.filter { t -> t.categoryId == catId }
+                val resolvedTypeId = initialEventTypeId
+                    ?: if (it.eventTypeId.isNotBlank()) it.eventTypeId
+                    else (typesInCat.firstOrNull()?.id ?: types.firstOrNull()?.id.orEmpty())
+
                 it.copy(
                     isEditing = false,
                     eventId = null,
@@ -234,11 +254,31 @@ class EventEditorViewModel(
                     parentEventTitle = parentTitle,
                     temporal = if (initialDate != null) defaultTemporal else (it.temporal ?: defaultTemporal),
                     priority = settings.defaultEventPriority,
-                    eventTypeId = initialEventTypeId ?: it.eventTypeId,
-                    timeZoneId = timeProvider.systemZoneId().id
+                    eventTypeId = resolvedTypeId,
+                    timeZoneId = timeProvider.systemZoneId().id,
+                    notificationSchedules = emptyList(),
+                    hasExplicitlyRemovedSchedules = false
                 )
             }
             checkConflicts()
+        }
+    }
+
+    private fun selectCategory(newCategoryId: String) {
+        val currentTypes = _uiState.value.availableEventTypes
+        val typesInCat = currentTypes.filter { it.categoryId == newCategoryId }
+        val updatedTypeId = if (typesInCat.isNotEmpty()) {
+            val currentSelectedBelongs = typesInCat.any { it.id == _uiState.value.eventTypeId }
+            if (currentSelectedBelongs) _uiState.value.eventTypeId else typesInCat.first().id
+        } else {
+            _uiState.value.eventTypeId
+        }
+        _uiState.update {
+            it.copy(
+                categoryId = newCategoryId,
+                eventTypeId = updatedTypeId,
+                validationError = null
+            )
         }
     }
 
@@ -361,7 +401,10 @@ class EventEditorViewModel(
 
     private fun removeNotificationSchedule(scheduleId: String) {
         _uiState.update {
-            it.copy(notificationSchedules = it.notificationSchedules.filter { s -> s.id != scheduleId })
+            it.copy(
+                notificationSchedules = it.notificationSchedules.filter { s -> s.id != scheduleId },
+                hasExplicitlyRemovedSchedules = true
+            )
         }
     }
 
@@ -459,13 +502,13 @@ class EventEditorViewModel(
             _uiState.update { it.copy(validationError = "Event title must not be blank") }
             return
         }
-        if (state.categoryId.isBlank()) {
-            _uiState.update { it.copy(validationError = "Please select a category") }
-            return
+        val resolvedCategoryId = state.categoryId.ifBlank {
+            state.availableCategories.firstOrNull()?.id ?: "cat_general"
         }
-        if (state.eventTypeId.isBlank()) {
-            _uiState.update { it.copy(validationError = "Please select an event type") }
-            return
+        val resolvedEventTypeId = state.eventTypeId.ifBlank {
+            state.availableEventTypes.firstOrNull { it.categoryId == resolvedCategoryId }?.id
+                ?: state.availableEventTypes.firstOrNull()?.id
+                ?: "type_general"
         }
         val temporal = state.temporal ?: EventDateTime.DateOnly(timeProvider.nowLocalDate())
 
@@ -474,22 +517,49 @@ class EventEditorViewModel(
 
             val now = timeProvider.nowInstant()
             val location = if (state.locationDisplayName.isNotBlank()) {
-                LocationData(placeName = state.locationDisplayName.trim())
+                val matched = state.availableSavedLocations.firstOrNull {
+                    it.name.equals(state.locationDisplayName.trim(), ignoreCase = true)
+                }
+                if (matched != null) {
+                    LocationData(
+                        id = matched.id,
+                        placeName = matched.name,
+                        addressText = matched.address,
+                        building = matched.building,
+                        room = matched.room,
+                        latitude = matched.latitude,
+                        longitude = matched.longitude,
+                        notes = matched.notes,
+                        isSavedLocation = true
+                    )
+                } else {
+                    LocationData(
+                        id = UUID.randomUUID().toString(),
+                        placeName = state.locationDisplayName.trim(),
+                        isSavedLocation = false
+                    )
+                }
             } else null
+
+            val schedulesToSave = if (state.notificationSchedules.isEmpty() && !state.hasExplicitlyRemovedSchedules) {
+                listOf(NotificationSchedule.atStart())
+            } else {
+                state.notificationSchedules
+            }
 
             val event = Event(
                 id = state.eventId ?: UUID.randomUUID().toString(),
                 title = title,
                 description = state.notes?.trim() ?: "",
                 priority = state.priority,
-                categoryId = state.categoryId,
-                eventTypeId = state.eventTypeId,
+                categoryId = resolvedCategoryId,
+                eventTypeId = resolvedEventTypeId,
                 lifecycleStatus = originalEvent?.lifecycleStatus ?: EventLifecycleStatus.ACTIVE,
                 isFavorite = originalEvent?.isFavorite ?: false,
                 temporal = temporal,
                 location = location,
                 recurrenceRule = state.recurrenceRule,
-                notificationSchedules = state.notificationSchedules,
+                notificationSchedules = schedulesToSave,
                 checklist = state.checklist,
                 groupIds = state.groupIds,
                 tagIds = state.tagIds,
@@ -498,6 +568,18 @@ class EventEditorViewModel(
                 createdAt = originalEvent?.createdAt ?: now,
                 updatedAt = now
             )
+
+            if (state.isEditing && originalEvent?.isRecurring == true && editRecurringSeriesUseCase != null) {
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        showRecurringSeriesDialog = true,
+                        pendingEditedDraft = event,
+                        targetOccurrenceStart = originalEvent?.temporal?.startLocalDateTime()
+                    )
+                }
+                return@launch
+            }
 
             val result = if (state.isEditing) {
                 updateEventUseCase(event)
@@ -525,6 +607,58 @@ class EventEditorViewModel(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    private fun saveRecurringSeries(mode: com.example.offlinereminder.domain.usecase.RecurringSeriesEditMode) {
+        val pending = _uiState.value.pendingEditedDraft ?: return
+        val orig = originalEvent ?: return
+        val startLdt = _uiState.value.targetOccurrenceStart ?: orig.temporal.startLocalDateTime()
+        val zone = when (val t = orig.temporal) {
+            is EventDateTime.DateTime -> t.zoneId
+            is EventDateTime.DateTimeRange -> t.zoneId
+            else -> timeProvider.systemZoneId()
+        }
+
+        viewModelScope.launch(dispatcherProvider.main) {
+            _uiState.update { it.copy(isSaving = true, showRecurringSeriesDialog = false) }
+            val savedEvent: Event = if (editRecurringSeriesUseCase != null) {
+                when (val r = editRecurringSeriesUseCase(orig, startLdt, zone, pending, mode)) {
+                    is Result.Success -> r.data
+                    is Result.Failure -> {
+                        _uiState.update {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = r.error.message ?: "Failed to update recurring series"
+                            )
+                        }
+                        return@launch
+                    }
+                }
+            } else {
+                when (val r = updateEventUseCase(pending)) {
+                    is Result.Success -> pending
+                    is Result.Failure -> {
+                        _uiState.update {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = r.error.message ?: "Failed to update recurring series"
+                            )
+                        }
+                        return@launch
+                    }
+                }
+            }
+
+            originalEvent = savedEvent
+            _uiState.update {
+                it.copy(
+                    isSaving = false,
+                    isSaved = true,
+                    eventId = savedEvent.id,
+                    pendingEditedDraft = null
+                )
             }
         }
     }

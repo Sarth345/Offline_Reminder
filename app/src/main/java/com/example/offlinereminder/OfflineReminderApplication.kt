@@ -16,5 +16,9 @@ class OfflineReminderApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = DefaultAppContainer(this)
+        try {
+            com.example.offlinereminder.data.notification.NotificationPoster(this).createNotificationChannels()
+        } catch (_: Exception) {
+        }
     }
 }

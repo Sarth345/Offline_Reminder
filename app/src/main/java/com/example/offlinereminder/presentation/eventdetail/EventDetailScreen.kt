@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -78,6 +79,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.offlinereminder.domain.model.EventDisplayStatus
 import com.example.offlinereminder.domain.model.DependencyType
 import com.example.offlinereminder.domain.model.EventDateTime
 import com.example.offlinereminder.domain.model.EventLifecycleStatus
@@ -444,7 +446,7 @@ fun EventDetailContent(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     PriorityBadge(priority = event.priority)
-                                    StatusBadge(status = event.lifecycleStatus)
+                                    StatusBadge(status = uiState.displayStatus)
 
                                     uiState.category?.let { cat ->
                                         ChipBadge(
@@ -491,6 +493,122 @@ fun EventDetailContent(
                                                 textColor = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Section 1.5: Reminder Status & Direct Actions
+                        if (!isTrashed) {
+                            val primaryOcc = uiState.primaryOccurrence
+                            val displayStatus = uiState.displayStatus
+                            val isOverdue = displayStatus == EventDisplayStatus.OVERDUE
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isOverdue) {
+                                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    }
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Reminder Action & Status",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        StatusBadge(status = displayStatus)
+                                    }
+
+                                    if (primaryOcc != null) {
+                                        val timeStr = if (event.temporal.isAllDay) {
+                                            "${DateTimeFormatters.formatDate(primaryOcc.effectiveStartDateTime.toLocalDate())} (All-day)"
+                                        } else {
+                                            DateTimeFormatters.formatDateTime(primaryOcc.effectiveStartDateTime)
+                                        }
+                                        Text(
+                                            text = "Scheduled: $timeStr",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = if (isOverdue) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    when (displayStatus) {
+                                        EventDisplayStatus.ACTIVE, EventDisplayStatus.OVERDUE, EventDisplayStatus.RESCHEDULED -> {
+                                            if (primaryOcc != null) {
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    FilledTonalButton(
+                                                        onClick = { onAction(EventDetailAction.CompleteOccurrence(primaryOcc)) },
+                                                        modifier = Modifier.weight(1f).heightIn(min = 40.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text("Complete", maxLines = 1)
+                                                    }
+                                                    OutlinedButton(
+                                                        onClick = { occurrenceToReschedule = primaryOcc },
+                                                        modifier = Modifier.weight(1f).heightIn(min = 40.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text("Reschedule", maxLines = 1)
+                                                    }
+                                                }
+                                                val cancelLabel = if (isOverdue) "Cancel" else "Skip"
+                                                OutlinedButton(
+                                                    onClick = { onAction(EventDetailAction.SkipOccurrence(primaryOcc)) },
+                                                    modifier = Modifier.fillMaxWidth().heightIn(min = 36.dp)
+                                                ) {
+                                                    Text(cancelLabel, maxLines = 1)
+                                                }
+                                            }
+                                        }
+                                        EventDisplayStatus.COMPLETED -> {
+                                            if (primaryOcc != null) {
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                OutlinedButton(
+                                                    onClick = { onAction(EventDetailAction.UndoOccurrenceAction(primaryOcc.occurrenceId)) },
+                                                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text("Undo Completion", maxLines = 1)
+                                                }
+                                            }
+                                        }
+                                        EventDisplayStatus.SKIPPED -> {
+                                            if (primaryOcc != null) {
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                OutlinedButton(
+                                                    onClick = { onAction(EventDetailAction.UndoOccurrenceAction(primaryOcc.occurrenceId)) },
+                                                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text("Restore Occurrence", maxLines = 1)
+                                                }
+                                            }
+                                        }
+                                        else -> {}
                                     }
                                 }
                             }

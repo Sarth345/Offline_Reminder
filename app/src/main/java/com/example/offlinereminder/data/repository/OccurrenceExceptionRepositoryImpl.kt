@@ -30,6 +30,12 @@ class OccurrenceExceptionRepositoryImpl(
     ): List<OccurrenceException> =
         occurrenceExceptionDao.getExceptionsInRange(startLdt, endLdt).map { it.toDomain() }
 
+    override suspend fun getAllExceptions(): List<OccurrenceException> =
+        occurrenceExceptionDao.getAll().map { it.toDomain() }
+
+    override fun getAllExceptionsFlow(): Flow<List<OccurrenceException>> =
+        occurrenceExceptionDao.getAllFlow().map { entities -> entities.map { it.toDomain() } }
+
     override suspend fun saveException(exception: OccurrenceException): Result<Unit> =
         Result.runCatching {
             occurrenceExceptionDao.insert(exception.toEntity())

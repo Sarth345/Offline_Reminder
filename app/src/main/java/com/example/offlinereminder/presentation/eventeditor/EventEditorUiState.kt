@@ -42,6 +42,7 @@ data class EventEditorUiState(
     val timeZoneId: String = ZoneId.systemDefault().id,
     val recurrenceRule: RecurrenceRule? = null,
     val notificationSchedules: List<NotificationSchedule> = emptyList(),
+    val hasExplicitlyRemovedSchedules: Boolean = false,
     val checklist: Checklist? = null,
     val groupIds: Set<String> = emptySet(),
     val tagIds: Set<String> = emptySet(),
@@ -53,6 +54,10 @@ data class EventEditorUiState(
     val availableNotificationProfiles: List<NotificationProfile> = emptyList(),
     val availableCustomSounds: List<CustomSoundMetadata> = emptyList(),
     val availableTemplates: List<EventTemplate> = emptyList(),
+    val availableSavedLocations: List<com.example.offlinereminder.domain.model.SavedLocation> = emptyList(),
+    val showRecurringSeriesDialog: Boolean = false,
+    val pendingEditedDraft: com.example.offlinereminder.domain.model.Event? = null,
+    val targetOccurrenceStart: java.time.LocalDateTime? = null,
     val detectedConflicts: List<ScheduleConflict> = emptyList(),
     val eventTypeSearchQuery: String = "",
     val filteredEventTypes: List<EventType> = emptyList(),
@@ -64,8 +69,13 @@ data class EventEditorUiState(
 ) {
     val canSave: Boolean
         get() = title.isNotBlank() &&
-            categoryId.isNotBlank() &&
-            eventTypeId.isNotBlank() &&
             temporal != null &&
             !isSaving
+
+    val missingFieldExplanation: String?
+        get() = when {
+            title.isBlank() -> "Title is required"
+            temporal == null -> "Date is required"
+            else -> null
+        }
 }

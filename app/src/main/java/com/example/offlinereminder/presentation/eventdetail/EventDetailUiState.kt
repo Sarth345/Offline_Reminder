@@ -4,6 +4,7 @@ import com.example.offlinereminder.domain.model.Category
 import com.example.offlinereminder.domain.model.CustomSoundMetadata
 import com.example.offlinereminder.domain.model.Event
 import com.example.offlinereminder.domain.model.EventDependency
+import com.example.offlinereminder.domain.model.EventDisplayStatus
 import com.example.offlinereminder.domain.model.EventGroup
 import com.example.offlinereminder.domain.model.EventOccurrence
 import com.example.offlinereminder.domain.model.EventRelationship
@@ -26,6 +27,8 @@ data class EventDetailUiState(
     val groups: List<EventGroup> = emptyList(),
     val tags: List<Tag> = emptyList(),
     val occurrences: List<EventOccurrence> = emptyList(),
+    val primaryOccurrence: EventOccurrence? = null,
+    val displayStatus: EventDisplayStatus = EventDisplayStatus.ACTIVE,
     val parentEvent: Event? = null,
     val subEvents: List<Event> = emptyList(),
     val dependencies: List<EventDependency> = emptyList(),
