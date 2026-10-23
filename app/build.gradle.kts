@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,10 +8,28 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+}
+
 android {
     namespace = "com.example.offlinereminder"
     compileSdk {
         version = release(37)
+    }
+
+    signingConfigs {
+        create("release") {
+            val storeFilePath = keystoreProperties.getProperty("RELEASE_STORE_FILE")
+            if (!storeFilePath.isNullOrBlank() && file(storeFilePath).exists()) {
+                storeFile = file(storeFilePath)
+                storePassword = keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     defaultConfig {
@@ -25,6 +46,10 @@ android {
         release {
             optimization {
                 enable = false
+            }
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
             }
         }
     }

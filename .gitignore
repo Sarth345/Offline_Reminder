@@ -20,3 +20,8 @@
 .cxx
 local.properties
 .kotlin
+
+# Keystores and signing credentials
+*.jks
+*.keystore
+keystore.properties

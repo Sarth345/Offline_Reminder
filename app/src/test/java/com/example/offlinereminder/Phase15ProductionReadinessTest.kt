@@ -190,7 +190,7 @@ class Phase15ProductionReadinessTest {
     fun offlinePrivacy_manifestHasZeroInternetPermissionsAndOnlyMainActivityExported() {
         val manifestFile = File("src/main/AndroidManifest.xml")
         assertTrue("AndroidManifest.xml must exist", manifestFile.exists())
-        val manifestContent = manifestFile.readText()
+        val manifestContent = manifestFile.readText().replace("\r\n", "\n")
 
         assertFalse("Must NOT declare INTERNET permission", manifestContent.contains("android.permission.INTERNET"))
         assertFalse("Must NOT declare ACCESS_NETWORK_STATE", manifestContent.contains("android.permission.ACCESS_NETWORK_STATE"))

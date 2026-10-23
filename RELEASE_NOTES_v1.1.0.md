@@ -90,12 +90,24 @@ Planerize 1.1.0 has undergone an exhaustive physical-device verification process
 
 ## Build Artifacts & Checksums
 
-### Release APK
-- **File**: `app-release-unsigned.apk`
-- **Size**: `15,662,553 bytes` (14.93 MB)
-- **SHA-256**: `3501f87c9b7d48b5dd42068b245317f77431ac61b98af2db68af3d9b99b98b6e`
+> [!NOTE]
+> **Release Artifact Correction**: The initial APK asset was replaced with a cryptographically signed, directly installable production APK (`app-release.apk`) signed with Android Signature Scheme v2. The package is directly installable on physical Android devices.
+
+### Production Signed Release APK
+- **File**: `app-release.apk`
+- **Size**: `15,674,841 bytes` (14.95 MB)
+- **SHA-256**: `986540a0c41d07af7104f13543cc62baece25a20cfe0cecec06b072c976e5f57`
+- **Application ID**: `com.example.offlinereminder`
+- **Version Code**: `2`
+- **Version Name**: `1.1.0`
+- **Signature Scheme**: `v2 (APK Signature Scheme v2)`
+- **Signature Verification**: `PASS (apksigner verify)`
+- **Physical Installation**: `PASS (OnePlus Nord CE4 / Android 16)`
 
 ### Release Android App Bundle (AAB)
 - **File**: `app-release.aab`
-- **Size**: `14,739,991 bytes` (14.05 MB)
-- **SHA-256**: `34fe1642d158360219f9564b9b8432ffa1a10910dee91f14fcb6f15f0cb578d3`
+- **Size**: `14,751,092 bytes` (14.07 MB)
+- **SHA-256**: `f6dc9dc2988925db49a0fda747e0e724952421c4d9b0fc5ae1dee6cfeceba04d`
+- **Application ID**: `com.example.offlinereminder`
+- **Version Code**: `2`
+- **Version Name**: `1.1.0`
