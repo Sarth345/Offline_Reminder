@@ -2,11 +2,11 @@
 
 **Planerize: Private, Offline-First Calendar, Reminders & Alarms**
 
-Version: `1.1.0`  
-Version Code: `2`  
-Application ID: `com.example.offlinereminder`  
-Branch: `feature/planerize-1.1`  
-Target: `main`  
+Version: `1.1.0`
+Version Code: `2`
+Application ID: `com.example.offlinereminder`
+Branch: `feature/planerize-1.1`
+Target: `main`
 
 ---
 
@@ -99,4 +99,3 @@ Planerize 1.1.0 has undergone an exhaustive physical-device verification process
 - **File**: `app-release.aab`
 - **Size**: `14,739,991 bytes` (14.05 MB)
 - **SHA-256**: `34fe1642d158360219f9564b9b8432ffa1a10910dee91f14fcb6f15f0cb578d3`
-
