@@ -122,31 +122,35 @@ class AppLockCoordinator(
             val prompt = promptBuilder.build()
             val executor = activity.mainExecutor
 
-            prompt.authenticate(
-                cancellationSignal,
-                executor,
-                object : BiometricPrompt.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
-                        super.onAuthenticationSucceeded(result)
-                        unlock()
-                        onSuccess()
-                    }
+            try {
+                prompt.authenticate(
+                    cancellationSignal,
+                    executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
+                            super.onAuthenticationSucceeded(result)
+                            unlock()
+                            onSuccess()
+                        }
 
-                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
-                        super.onAuthenticationError(errorCode, errString)
-                        if (errorCode != BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED &&
-                            errorCode != BiometricPrompt.BIOMETRIC_ERROR_CANCELED
-                        ) {
-                            onError(errString?.toString() ?: "Authentication failed")
+                        override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                            super.onAuthenticationError(errorCode, errString)
+                            if (errorCode != BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED &&
+                                errorCode != BiometricPrompt.BIOMETRIC_ERROR_CANCELED
+                            ) {
+                                onError(errString?.toString() ?: "Authentication failed")
+                            }
+                        }
+
+                        override fun onAuthenticationFailed() {
+                            super.onAuthenticationFailed()
+                            // Single attempt failure, prompt remains open for retries
                         }
                     }
-
-                    override fun onAuthenticationFailed() {
-                        super.onAuthenticationFailed()
-                        // Single attempt failure, prompt remains open for retries
-                    }
-                }
-            )
+                )
+            } catch (e: Exception) {
+                onError(e.message ?: "Authentication failed")
+            }
         } else {
             // API 26-27: Fallback to KeyguardManager confirm credential
             val intent = keyguardManager.createConfirmDeviceCredentialIntent(

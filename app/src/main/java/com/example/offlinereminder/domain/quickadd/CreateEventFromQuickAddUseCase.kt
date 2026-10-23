@@ -217,6 +217,16 @@ class CreateEventFromQuickAddUseCase(
         } else null
 
         val now = timeProvider.nowInstant()
+        val safeRecurrenceRule = if (draft.recurrenceRule != null &&
+            draft.recurrenceRule.frequency == com.example.offlinereminder.domain.model.RecurrenceFrequency.WEEKLY &&
+            draft.recurrenceRule.daysOfWeek.isEmpty()
+        ) {
+            val eventDay = draft.date?.dayOfWeek ?: temporal.startDate.dayOfWeek
+            draft.recurrenceRule.copy(daysOfWeek = setOf(eventDay))
+        } else {
+            draft.recurrenceRule
+        }
+
         val event = Event(
             id = UUID.randomUUID().toString(),
             title = draft.title,
@@ -226,7 +236,7 @@ class CreateEventFromQuickAddUseCase(
             priority = draft.priority,
             temporal = temporal,
             location = location,
-            recurrenceRule = draft.recurrenceRule,
+            recurrenceRule = safeRecurrenceRule,
             notificationSchedules = notificationSchedules,
             groupIds = groupIds,
             tagIds = tagIds,

@@ -214,7 +214,17 @@ data class SettingsBackupDto(
     val quietHours: QuietHoursBackupDto = QuietHoursBackupDto(),
     val appLockEnabled: Boolean = false,
     val appLockTimeoutMinutes: Int = 0,
-    val appLockOnBackground: Boolean = true
+    val appLockOnBackground: Boolean = true,
+    val notificationsEnabled: Boolean = true,
+    val alarmModeEnabled: Boolean = true,
+    val notificationSoundType: String = "DEFAULT",
+    val notificationSoundCustomId: String? = null,
+    val notificationSoundSysUri: String? = null,
+    val notificationSoundBuiltInKey: String? = null,
+    val alarmSoundType: String = "DEFAULT",
+    val alarmSoundCustomId: String? = null,
+    val alarmSoundSysUri: String? = null,
+    val alarmSoundBuiltInKey: String? = null
 )
 
 @Serializable

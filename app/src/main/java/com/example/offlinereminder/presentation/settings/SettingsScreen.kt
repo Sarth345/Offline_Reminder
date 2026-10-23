@@ -22,6 +22,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Category
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
@@ -85,6 +87,7 @@ import java.time.DayOfWeek
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToNotificationAlarmSettings: () -> Unit = {},
     onNavigateToTemplates: () -> Unit = {},
     onNavigateToTrash: () -> Unit = {},
     onNavigateToArchive: () -> Unit = {},
@@ -125,6 +128,7 @@ fun SettingsScreen(
         uiState = uiState,
         onAction = viewModel::onAction,
         onNavigateBack = onNavigateBack,
+        onNavigateToNotificationAlarmSettings = onNavigateToNotificationAlarmSettings,
         onExportClick = { exportLauncher.launch("Planerize_Backup.zip") },
         onImportClick = { importLauncher.launch(arrayOf("*/*")) },
         onNavigateToTemplates = onNavigateToTemplates,
@@ -146,6 +150,7 @@ fun SettingsContent(
     uiState: SettingsUiState,
     onAction: (SettingsAction) -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToNotificationAlarmSettings: () -> Unit = {},
     onExportClick: () -> Unit = {},
     onImportClick: () -> Unit = {},
     onNavigateToTemplates: () -> Unit = {},
@@ -233,7 +238,41 @@ fun SettingsContent(
                 onUpdateSnooze = { onAction(SettingsAction.UpdateDefaultSnooze(it)) }
             )
 
-            // 4. Notifications & Quiet Hours Section
+            // 4. Notifications & Alarms Configuration Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Notifications & Alarms",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "Manage sound tones, alarm tunes, snooze intervals & alert permissions",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                    Button(
+                        onClick = onNavigateToNotificationAlarmSettings,
+                        modifier = Modifier.semantics { contentDescription = "Open notification and alarm configuration" }
+                    ) {
+                        Text("Configure")
+                    }
+                }
+            }
+
+            // 5. Notifications & Quiet Hours Section
             NotificationsSection(
                 soundEnabled = uiState.settings.soundEnabled,
                 vibrationEnabled = uiState.settings.vibrationEnabled,

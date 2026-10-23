@@ -20,6 +20,7 @@ sealed class Screen(val route: String) {
     data object Trash : Screen("trash")
     data object Templates : Screen("templates")
     data object NotificationProfiles : Screen("notification_profiles")
+    data object NotificationAlarmSettings : Screen("notification_alarm_settings")
     data object AppLock : Screen("app_lock")
     data object AppLockSettings : Screen("app_lock_settings")
     data object SavedLocations : Screen("saved_locations")

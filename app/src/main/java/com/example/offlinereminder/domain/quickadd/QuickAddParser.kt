@@ -285,6 +285,11 @@ class QuickAddParser(
             parsedDate = if (parsedTime.isBefore(nowTime)) today.plusDays(1) else today
         }
 
+        val effectiveDate = parsedDate ?: today
+        if (recurrenceRule != null && recurrenceRule.frequency == RecurrenceFrequency.WEEKLY && recurrenceRule.daysOfWeek.isEmpty()) {
+            recurrenceRule = recurrenceRule.copy(daysOfWeek = setOf(effectiveDate.dayOfWeek))
+        }
+
         // 10. Clean up remaining title
         var title = text
             .replace(CLEANUP_REGEX, " ")

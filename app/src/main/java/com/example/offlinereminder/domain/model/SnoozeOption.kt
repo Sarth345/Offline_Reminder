@@ -22,7 +22,7 @@ enum class StandardSnooze(val duration: Duration) {
  */
 object SnoozeCalculator {
 
-    val DEFAULT_SNOOZE_DURATION: Duration = Duration.ofMinutes(10)
+    val DEFAULT_SNOOZE_DURATION: Duration = Duration.ofMinutes(15)
 
     fun calculateTomorrow(
         today: LocalDate,

@@ -255,7 +255,9 @@ class EventEditorViewModel(
                     temporal = if (initialDate != null) defaultTemporal else (it.temporal ?: defaultTemporal),
                     priority = settings.defaultEventPriority,
                     eventTypeId = resolvedTypeId,
-                    timeZoneId = timeProvider.systemZoneId().id
+                    timeZoneId = timeProvider.systemZoneId().id,
+                    notificationSchedules = emptyList(),
+                    hasExplicitlyRemovedSchedules = false
                 )
             }
             checkConflicts()
@@ -399,7 +401,10 @@ class EventEditorViewModel(
 
     private fun removeNotificationSchedule(scheduleId: String) {
         _uiState.update {
-            it.copy(notificationSchedules = it.notificationSchedules.filter { s -> s.id != scheduleId })
+            it.copy(
+                notificationSchedules = it.notificationSchedules.filter { s -> s.id != scheduleId },
+                hasExplicitlyRemovedSchedules = true
+            )
         }
     }
 
@@ -536,6 +541,12 @@ class EventEditorViewModel(
                 }
             } else null
 
+            val schedulesToSave = if (state.notificationSchedules.isEmpty() && !state.hasExplicitlyRemovedSchedules) {
+                listOf(NotificationSchedule.atStart())
+            } else {
+                state.notificationSchedules
+            }
+
             val event = Event(
                 id = state.eventId ?: UUID.randomUUID().toString(),
                 title = title,
@@ -548,7 +559,7 @@ class EventEditorViewModel(
                 temporal = temporal,
                 location = location,
                 recurrenceRule = state.recurrenceRule,
-                notificationSchedules = state.notificationSchedules,
+                notificationSchedules = schedulesToSave,
                 checklist = state.checklist,
                 groupIds = state.groupIds,
                 tagIds = state.tagIds,

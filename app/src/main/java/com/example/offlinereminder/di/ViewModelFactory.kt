@@ -182,7 +182,14 @@ class ViewModelFactory(
                     deleteEventTypeUseCase = appContainer.deleteEventTypeUseCase,
                     exportBackupUseCase = appContainer.exportBackupUseCase,
                     restoreBackupUseCase = appContainer.restoreBackupUseCase,
-                    dispatcherProvider = appContainer.dispatcherProvider
+                    dispatcherProvider = appContainer.dispatcherProvider,
+                    alarmScheduler = appContainer.alarmScheduler,
+                    getCustomSoundsUseCase = appContainer.getCustomSoundsUseCase,
+                    addCustomSoundUseCase = appContainer.addCustomSoundUseCase,
+                    deleteCustomSoundUseCase = appContainer.deleteCustomSoundUseCase,
+                    customSoundStorage = appContainer.customSoundStorage,
+                    createEventUseCase = appContainer.createEventUseCase,
+                    timeProvider = appContainer.timeProvider
                 ) as T
             }
             modelClass.isAssignableFrom(com.example.offlinereminder.presentation.quickadd.QuickAddViewModel::class.java) -> {

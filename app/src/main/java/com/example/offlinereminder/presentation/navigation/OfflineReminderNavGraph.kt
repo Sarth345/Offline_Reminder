@@ -31,6 +31,7 @@ import com.example.offlinereminder.presentation.notificationprofiles.Notificatio
 import com.example.offlinereminder.presentation.notificationprofiles.NotificationProfilesViewModel
 import com.example.offlinereminder.presentation.search.SearchScreen
 import com.example.offlinereminder.presentation.search.SearchViewModel
+import com.example.offlinereminder.presentation.settings.NotificationAlarmSettingsScreen
 import com.example.offlinereminder.presentation.settings.SettingsScreen
 import com.example.offlinereminder.presentation.settings.SettingsViewModel
 import com.example.offlinereminder.presentation.templates.TemplatesScreen
@@ -245,6 +246,7 @@ fun OfflineReminderNavGraph(
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToNotificationAlarmSettings = { navController.navigate(Screen.NotificationAlarmSettings.route) },
                 onNavigateToTemplates = { navController.navigate(Screen.Templates.route) },
                 onNavigateToTrash = { navController.navigate(Screen.Trash.route) },
                 onNavigateToArchive = { navController.navigate(Screen.Archive.route) },
@@ -254,6 +256,16 @@ fun OfflineReminderNavGraph(
                 onNavigateToExport = { navController.navigate(Screen.Export.route) },
                 onNavigateToIcsImport = { navController.navigate(Screen.IcsImport.route) },
                 onNavigateToStatistics = { navController.navigate(Screen.Statistics.route) }
+            )
+        }
+
+        // 9b. Notifications & Alarms Settings
+        composable(route = Screen.NotificationAlarmSettings.route) {
+            val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
+            NotificationAlarmSettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToNotificationProfiles = { navController.navigate(Screen.NotificationProfiles.route) }
             )
         }
 

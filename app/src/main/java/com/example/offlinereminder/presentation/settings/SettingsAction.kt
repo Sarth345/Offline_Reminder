@@ -30,6 +30,24 @@ sealed interface SettingsAction {
     data class ToggleSound(val enabled: Boolean) : SettingsAction
     data class ToggleVibration(val enabled: Boolean) : SettingsAction
     data class UpdateQuietHours(val quietHours: QuietHours) : SettingsAction
+    data class ToggleNotificationsEnabled(val enabled: Boolean) : SettingsAction
+    data class ToggleAlarmModeEnabled(val enabled: Boolean) : SettingsAction
+    data class UpdateNotificationSound(val sound: com.example.offlinereminder.domain.model.SoundReference) : SettingsAction
+    data class UpdateAlarmSound(val sound: com.example.offlinereminder.domain.model.SoundReference) : SettingsAction
+    data class RefreshCapabilities(val areNotificationsEnabled: Boolean) : SettingsAction
+    data class AddCustomSound(
+        val title: String,
+        val fileName: String,
+        val mimeType: String,
+        val fileSizeBytes: Long,
+        val inputStream: InputStream,
+        val applyToNotification: Boolean = false,
+        val applyToAlarm: Boolean = false
+    ) : SettingsAction
+    data class DeleteCustomSound(val soundId: String) : SettingsAction
+    data class PreviewSound(val sound: com.example.offlinereminder.domain.model.SoundReference, val type: String) : SettingsAction
+    data object StopPreviewSound : SettingsAction
+    data class ScheduleTestNotification(val isAlarm: Boolean) : SettingsAction
 
     // Category Management
     data class CreateCategory(

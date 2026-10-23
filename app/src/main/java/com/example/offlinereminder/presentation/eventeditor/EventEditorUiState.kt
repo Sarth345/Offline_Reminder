@@ -42,6 +42,7 @@ data class EventEditorUiState(
     val timeZoneId: String = ZoneId.systemDefault().id,
     val recurrenceRule: RecurrenceRule? = null,
     val notificationSchedules: List<NotificationSchedule> = emptyList(),
+    val hasExplicitlyRemovedSchedules: Boolean = false,
     val checklist: Checklist? = null,
     val groupIds: Set<String> = emptySet(),
     val tagIds: Set<String> = emptySet(),

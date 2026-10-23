@@ -9,6 +9,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.offlinereminder.MainActivity
@@ -69,7 +70,25 @@ class NotificationPoster(
                 enableVibration(false)
             }
 
-            notificationManager?.createNotificationChannels(listOf(defaultChannel, silentChannel, alarmChannel))
+            val builtInChannels = com.example.offlinereminder.domain.model.BuiltInSoundCatalog.NOTIFICATION_TONES.mapNotNull { tone ->
+                val soundUri = com.example.offlinereminder.data.sound.BuiltInSoundResourceMapper.getSoundUriForKey(context, tone.key)
+                    ?: return@mapNotNull null
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                NotificationChannel(
+                    "offline_reminders_tone_${tone.key}",
+                    "Reminders - ${tone.displayName}",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Alerts playing ${tone.displayName}"
+                    setSound(soundUri, audioAttributes)
+                    enableVibration(true)
+                }
+            }
+
+            notificationManager?.createNotificationChannels(listOf(defaultChannel, silentChannel, alarmChannel) + builtInChannels)
         }
     }
 
@@ -84,6 +103,34 @@ class NotificationPoster(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && notificationManager != null) {
             when (sound.type) {
+                SoundSourceType.BUILT_IN -> {
+                    val key = sound.builtInSoundKey
+                    if (!key.isNullOrBlank()) {
+                        val channelId = "offline_reminders_tone_${key}"
+                        if (notificationManager?.getNotificationChannel(channelId) == null) {
+                            val soundUri = com.example.offlinereminder.data.sound.BuiltInSoundResourceMapper.getSoundUriForKey(context, key)
+                            val builtInSound = com.example.offlinereminder.domain.model.BuiltInSoundCatalog.findNotificationTone(key)
+                            val channelName = builtInSound?.displayName ?: key
+                            val audioAttributes = AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build()
+                            val toneChannel = NotificationChannel(
+                                channelId,
+                                "Reminders - $channelName",
+                                NotificationManager.IMPORTANCE_HIGH
+                            ).apply {
+                                description = "Alerts playing $channelName"
+                                if (soundUri != null) {
+                                    setSound(soundUri, audioAttributes)
+                                }
+                                enableVibration(vibrationEnabled)
+                            }
+                            notificationManager?.createNotificationChannel(toneChannel)
+                        }
+                        return channelId
+                    }
+                }
                 SoundSourceType.CUSTOM -> {
                     val customSoundId = sound.customSoundId
                     if (!customSoundId.isNullOrBlank()) {
@@ -214,7 +261,7 @@ class NotificationPoster(
         )
 
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(event.title)
             .setContentText(event.description.ifBlank { "Reminder" })
             .setContentIntent(contentPendingIntent)
@@ -237,11 +284,13 @@ class NotificationPoster(
         val compat = NotificationManagerCompat.from(context)
         return try {
             compat.notify(notificationId, builder.build())
+            Log.d("PlanerizeNotification", "Posted notification for '${event.title}' (id: $notificationId) on channel '$channelId'")
             true
         } catch (e: SecurityException) {
-            // Target SDK 33+ without POST_NOTIFICATIONS permission
+            Log.w("PlanerizeNotification", "SecurityException posting notification for '${event.title}' (id: $notificationId). Check POST_NOTIFICATIONS permission.", e)
             false
         } catch (e: Exception) {
+            Log.e("PlanerizeNotification", "Failed to post notification for '${event.title}' (id: $notificationId)", e)
             false
         }
     }
@@ -297,7 +346,7 @@ class NotificationPoster(
         )
 
         return NotificationCompat.Builder(context, NotificationConstants.CHANNEL_ID_ALARM)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(eventTitle)
             .setContentText(eventDesc.ifBlank { "Alarm ringing" })
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -327,7 +376,7 @@ class NotificationPoster(
         )
 
         val notification = NotificationCompat.Builder(context, NotificationConstants.CHANNEL_ID_DEFAULT)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Missed Alarm: $eventTitle")
             .setContentText("Alarm timed out after 10 minutes")
             .setContentIntent(contentPendingIntent)
