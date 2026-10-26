@@ -108,7 +108,7 @@ fun DashboardContent(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
+            com.example.offlinereminder.presentation.components.PrimaryScreenTopBar(
                 title = {
                     Column {
                         Text(
@@ -125,17 +125,7 @@ fun DashboardContent(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings & Backup"
-                        )
-                    }
-                }
+                onNavigateToSettings = onNavigateToSettings
             )
         }
     ) { innerPadding ->

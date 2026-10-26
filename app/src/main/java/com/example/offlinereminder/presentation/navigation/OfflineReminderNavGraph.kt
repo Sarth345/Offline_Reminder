@@ -79,6 +79,9 @@ fun OfflineReminderNavGraph(
                 },
                 onNavigateToAddEvent = {
                     navController.navigate(Screen.EventEditor.createRoute())
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }
@@ -93,6 +96,9 @@ fun OfflineReminderNavGraph(
                 },
                 onNavigateToAddEvent = {
                     navController.navigate(Screen.EventEditor.createRoute())
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }
@@ -111,6 +117,9 @@ fun OfflineReminderNavGraph(
                 },
                 onNavigateToAddEvent = {
                     navController.navigate(Screen.EventEditor.createRoute())
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }
@@ -125,6 +134,9 @@ fun OfflineReminderNavGraph(
                 },
                 onNavigateToAddEventWithDate = { localDate ->
                     navController.navigate(Screen.EventEditor.createRoute(initialDate = localDate.toString()))
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }
@@ -136,6 +148,9 @@ fun OfflineReminderNavGraph(
                 viewModel = groupsViewModel,
                 onNavigateToGroupDetails = { groupId ->
                     navController.navigate(Screen.GroupDetails.createRoute(groupId))
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }

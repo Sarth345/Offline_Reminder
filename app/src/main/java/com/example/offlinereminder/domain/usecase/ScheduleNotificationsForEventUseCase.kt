@@ -83,6 +83,14 @@ class ScheduleNotificationsForEventUseCase(
         // 4. Cancel any existing instances that are no longer valid candidates
         for (existing in existingInstances) {
             if (existing.isPending && !candidateIds.contains(existing.id)) {
+                // Preserve actively snoozed instances whose snoozed trigger is still in the future
+                if (existing.status == NotificationInstanceStatus.SNOOZED && existing.triggerEpochMillis > nowEpochMillis) {
+                    continue
+                }
+                // Preserve actively ringing instances
+                if (existing.status == NotificationInstanceStatus.RINGING) {
+                    continue
+                }
                 alarmScheduler.cancelAlarm(existing.requestCode, NotificationConstants.ACTION_ALARM)
                 notificationRepository.updateStatus(existing.id, NotificationInstanceStatus.CANCELLED)
             }
@@ -92,6 +100,15 @@ class ScheduleNotificationsForEventUseCase(
         var scheduledCount = 0
         for (candidate in candidates) {
             val existing = existingMap[candidate.instanceId]
+            // Do not overwrite an actively snoozed or ringing instance
+            if (existing != null) {
+                if (existing.status == NotificationInstanceStatus.SNOOZED && existing.triggerEpochMillis > nowEpochMillis) {
+                    continue
+                }
+                if (existing.status == NotificationInstanceStatus.RINGING) {
+                    continue
+                }
+            }
             val shouldSchedule = existing == null ||
                 existing.status == NotificationInstanceStatus.CANCELLED ||
                 existing.triggerEpochMillis != candidate.triggerEpochMillis
@@ -108,7 +125,8 @@ class ScheduleNotificationsForEventUseCase(
                         NotificationConstants.EXTRA_EVENT_ID to candidate.eventId,
                         NotificationConstants.EXTRA_OCCURRENCE_START to candidate.occurrenceOriginalStartDateTime.toString(),
                         NotificationConstants.EXTRA_OCCURRENCE_ZONE to candidate.occurrenceOriginalZoneId.id,
-                        NotificationConstants.EXTRA_IS_SILENT to candidate.isSilent.toString()
+                        NotificationConstants.EXTRA_IS_SILENT to candidate.isSilent.toString(),
+                        NotificationConstants.EXTRA_DELIVERY_TYPE to candidate.deliveryType.name
                     )
                 )
                 if (success) {

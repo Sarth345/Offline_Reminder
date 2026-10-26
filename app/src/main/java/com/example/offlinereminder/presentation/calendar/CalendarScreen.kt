@@ -65,6 +65,7 @@ fun CalendarScreen(
     viewModel: CalendarViewModel,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToAddEventWithDate: (LocalDate) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -74,6 +75,7 @@ fun CalendarScreen(
         onAction = viewModel::onAction,
         onNavigateToDetails = onNavigateToDetails,
         onNavigateToAddEventWithDate = onNavigateToAddEventWithDate,
+        onNavigateToSettings = onNavigateToSettings,
         modifier = modifier
     )
 }
@@ -85,6 +87,7 @@ fun CalendarContent(
     onAction: (CalendarAction) -> Unit,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToAddEventWithDate: (LocalDate) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var occurrenceToReschedule by remember { mutableStateOf<EventOccurrence?>(null) }
@@ -108,7 +111,7 @@ fun CalendarContent(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
+            com.example.offlinereminder.presentation.components.PrimaryScreenTopBar(
                 title = {
                     Text(
                         text = "Calendar",
@@ -116,7 +119,7 @@ fun CalendarContent(
                         fontWeight = FontWeight.Bold
                     )
                 },
-                actions = {
+                extraActions = {
                     TextButton(
                         onClick = { onAction(CalendarAction.JumpToToday) },
                         modifier = Modifier.semantics { contentDescription = "Jump to today" }
@@ -130,9 +133,7 @@ fun CalendarContent(
                         Text("Today")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                onNavigateToSettings = onNavigateToSettings
             )
         }
     ) { innerPadding ->

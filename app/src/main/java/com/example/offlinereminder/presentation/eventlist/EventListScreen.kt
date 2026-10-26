@@ -34,6 +34,7 @@ fun EventListScreen(
     viewModel: EventListViewModel,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToAddEvent: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -43,6 +44,7 @@ fun EventListScreen(
         onAction = viewModel::onAction,
         onNavigateToDetails = onNavigateToDetails,
         onNavigateToAddEvent = onNavigateToAddEvent,
+        onNavigateToSettings = onNavigateToSettings,
         modifier = modifier
     )
 }
@@ -54,6 +56,7 @@ fun EventListContent(
     onAction: (EventListAction) -> Unit,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToAddEvent: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val categoryMap = uiState.availableCategories.associateBy { it.id }
@@ -64,7 +67,7 @@ fun EventListContent(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
+            com.example.offlinereminder.presentation.components.PrimaryScreenTopBar(
                 title = {
                     Text(
                         text = when (uiState.selectedStatus) {
@@ -76,9 +79,7 @@ fun EventListContent(
                         fontWeight = FontWeight.Bold
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                onNavigateToSettings = onNavigateToSettings
             )
         }
     ) { innerPadding ->

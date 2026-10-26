@@ -76,6 +76,7 @@ private val GROUP_COLOR_PALETTE = listOf(
 fun GroupsScreen(
     viewModel: GroupsViewModel,
     onNavigateToGroupDetails: (String) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -84,6 +85,7 @@ fun GroupsScreen(
         uiState = uiState,
         onAction = viewModel::onAction,
         onNavigateToGroupDetails = onNavigateToGroupDetails,
+        onNavigateToSettings = onNavigateToSettings,
         modifier = modifier
     )
 }
@@ -94,6 +96,7 @@ fun GroupsContent(
     uiState: GroupsUiState,
     onAction: (GroupsAction) -> Unit,
     onNavigateToGroupDetails: (String) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -103,7 +106,7 @@ fun GroupsContent(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
+            com.example.offlinereminder.presentation.components.PrimaryScreenTopBar(
                 title = {
                     Text(
                         text = "Groups",
@@ -111,9 +114,7 @@ fun GroupsContent(
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                onNavigateToSettings = onNavigateToSettings
             )
         },
         floatingActionButton = {

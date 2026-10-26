@@ -198,7 +198,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     eventTitle = "Missed Alarm",
                     notificationId = instance.requestCode
                 )
-            }
+            },
+            eventRepository = eventRepository
         )
     }
 

@@ -22,7 +22,8 @@ class SnoozeNotificationUseCase(
 ) {
     suspend operator fun invoke(
         instanceId: String,
-        snoozeDuration: Duration = SnoozeCalculator.DEFAULT_SNOOZE_DURATION
+        snoozeDuration: Duration = SnoozeCalculator.DEFAULT_SNOOZE_DURATION,
+        deliveryType: com.example.offlinereminder.domain.model.ReminderDeliveryType? = null
     ): Result<Instant> = Result.runCatching {
         val instance = notificationRepository.getInstanceById(instanceId)
             ?: throw IllegalArgumentException("Notification instance not found for ID: $instanceId")
@@ -37,17 +38,28 @@ class SnoozeNotificationUseCase(
         // Persist snooze state in database
         notificationRepository.snooze(instance.id, snoozeUntil, newTriggerMillis)
 
+        val effectiveDeliveryType = deliveryType ?: if (instance.status == com.example.offlinereminder.domain.model.NotificationInstanceStatus.RINGING) {
+            com.example.offlinereminder.domain.model.ReminderDeliveryType.ALARM
+        } else {
+            null
+        }
+
+        val extras = mutableMapOf(
+            NotificationConstants.EXTRA_INSTANCE_ID to instance.id,
+            NotificationConstants.EXTRA_EVENT_ID to instance.eventId,
+            NotificationConstants.EXTRA_OCCURRENCE_START to instance.occurrenceOriginalStartDateTime.toString(),
+            NotificationConstants.EXTRA_OCCURRENCE_ZONE to instance.occurrenceOriginalZoneId.id
+        )
+        if (effectiveDeliveryType != null) {
+            extras[NotificationConstants.EXTRA_DELIVERY_TYPE] = effectiveDeliveryType.name
+        }
+
         // Schedule new wake-up alarm
         alarmScheduler.scheduleAlarm(
             requestCode = instance.requestCode,
             triggerEpochMillis = newTriggerMillis,
             intentAction = NotificationConstants.ACTION_ALARM,
-            extras = mapOf(
-                NotificationConstants.EXTRA_INSTANCE_ID to instance.id,
-                NotificationConstants.EXTRA_EVENT_ID to instance.eventId,
-                NotificationConstants.EXTRA_OCCURRENCE_START to instance.occurrenceOriginalStartDateTime.toString(),
-                NotificationConstants.EXTRA_OCCURRENCE_ZONE to instance.occurrenceOriginalZoneId.id
-            )
+            extras = extras
         )
 
         snoozeUntil

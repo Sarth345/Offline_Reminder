@@ -22,7 +22,7 @@ import com.example.offlinereminder.domain.model.SoundSourceType
 import com.example.offlinereminder.domain.notification.NotificationConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.time.LocalTime
 
 /**
@@ -50,9 +50,9 @@ class NotificationReceiver : BroadcastReceiver() {
         }
 
         Log.d(TAG, "onReceive triggered for instanceId='$instanceId', eventId='$eventId'")
-        val pendingResult = goAsync()
 
-        CoroutineScope(Dispatchers.IO).launch {
+
+        runBlocking(Dispatchers.IO) {
             try {
                 val db = databaseOverride ?: try {
                     (context.applicationContext as? OfflineReminderApplication)?.container?.database
@@ -66,7 +66,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 val terminalStatuses = setOf("CANCELLED", "DISMISSED", "COMPLETED", "DELIVERED", "TIMED_OUT")
                 if (instanceEntity == null || terminalStatuses.contains(instanceEntity.status)) {
                     Log.d(TAG, "Dropping trigger: instance is null or in terminal state: ${instanceEntity?.status}")
-                    return@launch
+                    return@runBlocking
                 }
 
                 if (instanceEntity.status == NotificationInstanceStatus.RINGING.name &&
@@ -74,7 +74,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     AlarmStateManager.getInstance().currentInstanceId() == instanceId
                 ) {
                     Log.d(TAG, "Dropping duplicate trigger: already actively ringing instance '$instanceId'")
-                    return@launch
+                    return@runBlocking
                 }
 
                 val eventAggregate = db.eventDao().getEventWithDetailsById(eventId)
@@ -83,7 +83,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 ) {
                     Log.d(TAG, "Dropping trigger and cancelling instance: event is null or trashed")
                     db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.CANCELLED.name)
-                    return@launch
+                    return@runBlocking
                 }
 
                 // Check occurrence exceptions
@@ -100,7 +100,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 ) {
                     Log.d(TAG, "Dropping trigger: occurrence exception status is ${matchingException.status}")
                     db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.CANCELLED.name)
-                    return@launch
+                    return@runBlocking
                 }
 
                 // Resolve schedule and profile
@@ -120,7 +120,14 @@ class NotificationReceiver : BroadcastReceiver() {
                 }
 
                 // Resolve effective parameters
-                var deliveryType = schedule?.deliveryType ?: profile?.deliveryType ?: ReminderDeliveryType.NOTIFICATION
+                val deliveryTypeFromIntent = intent.getStringExtra(NotificationConstants.EXTRA_DELIVERY_TYPE)?.let {
+                    try {
+                        ReminderDeliveryType.valueOf(it)
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+                var deliveryType = deliveryTypeFromIntent ?: schedule?.deliveryType ?: profile?.deliveryType ?: ReminderDeliveryType.NOTIFICATION
                 if (deliveryType == ReminderDeliveryType.ALARM && settings?.alarmModeEnabled == false) {
                     Log.d(TAG, "Alarm mode is disabled in settings. Downgrading to notification.")
                     deliveryType = ReminderDeliveryType.NOTIFICATION
@@ -170,6 +177,10 @@ class NotificationReceiver : BroadcastReceiver() {
                     db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.RINGING.name)
 
                     try {
+                        val occurrenceStart = instanceEntity.occurrenceOriginalStartDateTime.toString()
+                        val occurrenceZone = instanceEntity.occurrenceOriginalZoneId
+                        val location = eventAggregate.event.locationPlaceName?.ifBlank { null }
+                            ?: eventAggregate.event.locationAddressText?.ifBlank { null }
                         AlarmPlaybackService.start(
                             context = context,
                             instanceId = instanceId,
@@ -178,7 +189,10 @@ class NotificationReceiver : BroadcastReceiver() {
                             eventDesc = eventAggregate.event.description,
                             sound = effectiveSound,
                             vibrationEnabled = vibrationEnabled,
-                            snoozeDurationMinutes = snoozeMinutes
+                            snoozeDurationMinutes = snoozeMinutes,
+                            occurrenceStart = occurrenceStart,
+                            occurrenceZone = occurrenceZone,
+                            location = location
                         )
                     } catch (e: Exception) {
                         Log.w(TAG, "AlarmPlaybackService.start failed, falling back to NotificationPoster", e)
@@ -200,7 +214,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     if (settings?.notificationsEnabled == false) {
                         Log.d(TAG, "Notifications are disabled in settings. Skipping post.")
                         db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.DELIVERED.name)
-                        return@launch
+                        return@runBlocking
                     }
 
                     Log.d(TAG, "Executing NOTIFICATION delivery for '${eventAggregate.event.title}', sound=$effectiveSound")
@@ -219,8 +233,8 @@ class NotificationReceiver : BroadcastReceiver() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Unhandled exception in NotificationReceiver", e)
-            } finally {
-                pendingResult?.finish()
+
+
             }
         }
     }

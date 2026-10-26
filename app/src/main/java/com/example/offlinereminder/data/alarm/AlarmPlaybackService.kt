@@ -130,6 +130,9 @@ class AlarmPlaybackService : Service() {
         val builtInSoundKey = intent.getStringExtra(NotificationConstants.EXTRA_BUILT_IN_SOUND_KEY)
         val vibrationEnabled = intent.getBooleanExtra(NotificationConstants.EXTRA_VIBRATION_ENABLED, true)
         val snoozeDurationMinutes = intent.getIntExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MINUTES, 15)
+        val occurrenceStart = intent.getStringExtra(NotificationConstants.EXTRA_OCCURRENCE_START)
+        val occurrenceZone = intent.getStringExtra(NotificationConstants.EXTRA_OCCURRENCE_ZONE)
+        val location = intent.getStringExtra(NotificationConstants.EXTRA_LOCATION)
         currentEventTitle = eventTitle
 
         Log.d("PlanerizeAlarm", "handleStartAlarm for '$eventTitle' (id: $instanceId, soundType: $soundTypeStr, snooze: ${snoozeDurationMinutes}m)")
@@ -140,7 +143,10 @@ class AlarmPlaybackService : Service() {
             eventId = eventId ?: "",
             eventTitle = eventTitle,
             eventDesc = eventDesc,
-            snoozeDurationMinutes = snoozeDurationMinutes
+            snoozeDurationMinutes = snoozeDurationMinutes,
+            occurrenceStart = occurrenceStart,
+            occurrenceZone = occurrenceZone,
+            location = location
         )
 
         val notificationId = instanceId.hashCode()
@@ -150,7 +156,34 @@ class AlarmPlaybackService : Service() {
             startForeground(notificationId, foregroundNotification)
         }
 
-        // 2. Transition state to RINGING in memory and ensure Room status is RINGING
+        // 2. Launch full screen alert activity over lockscreen
+        try {
+            val alertIntent = Intent(this, com.example.offlinereminder.presentation.alarm.AlarmAlertActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                putExtra(NotificationConstants.EXTRA_INSTANCE_ID, instanceId)
+                putExtra(NotificationConstants.EXTRA_EVENT_ID, eventId)
+                putExtra(NotificationConstants.EXTRA_EVENT_TITLE, eventTitle)
+                putExtra(NotificationConstants.EXTRA_EVENT_DESC, eventDesc)
+                putExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MINUTES, snoozeDurationMinutes)
+                if (!occurrenceStart.isNullOrBlank()) {
+                    putExtra(NotificationConstants.EXTRA_OCCURRENCE_START, occurrenceStart)
+                }
+                if (!occurrenceZone.isNullOrBlank()) {
+                    putExtra(NotificationConstants.EXTRA_OCCURRENCE_ZONE, occurrenceZone)
+                }
+                if (!location.isNullOrBlank()) {
+                    putExtra(NotificationConstants.EXTRA_LOCATION, location)
+                }
+            }
+            startActivity(alertIntent)
+            Log.d("PlanerizeAlarm", "Started AlarmAlertActivity for '$eventTitle' (id: $instanceId)")
+        } catch (e: Exception) {
+            Log.w("PlanerizeAlarm", "Direct startActivity failed, fullScreenIntent on notification will handle presentation", e)
+        }
+
+        // 3. Transition state to RINGING in memory and ensure Room status is RINGING
         stateManager.transitionTo(instanceId, eventId, AlarmState.RINGING)
         serviceScope.launch(Dispatchers.IO) {
             try {
@@ -193,17 +226,18 @@ class AlarmPlaybackService : Service() {
 
         if (targetId != null) {
             stateManager.transitionTo(targetId, currentEventId, AlarmState.DISMISSED)
-            serviceScope.launch(Dispatchers.IO) {
-                try {
-                    val db = getDatabase()
-                    val repo = OfflineNotificationRepository(db.notificationInstanceDao())
-                    val scheduler = AndroidAlarmScheduler(applicationContext)
-                    val dismissUseCase = DismissNotificationUseCase(repo, scheduler)
+            try {
+                val db = getDatabase()
+                val repo = OfflineNotificationRepository(db.notificationInstanceDao())
+                val scheduler = AndroidAlarmScheduler(applicationContext)
+                val dismissUseCase = DismissNotificationUseCase(repo, scheduler)
+                kotlinx.coroutines.runBlocking(Dispatchers.IO) {
                     dismissUseCase(targetId)
                     // Explicitly ensure status is DISMISSED in Room
                     db.notificationInstanceDao().updateStatus(targetId, NotificationInstanceStatus.DISMISSED.name)
-                } catch (_: Exception) {
                 }
+            } catch (e: Exception) {
+                Log.w("PlanerizeAlarm", "Database dismiss update failed for instance '$targetId'", e)
             }
         }
 
@@ -217,16 +251,17 @@ class AlarmPlaybackService : Service() {
 
         if (targetId != null) {
             stateManager.transitionTo(targetId, currentEventId, AlarmState.SNOOZED)
-            serviceScope.launch(Dispatchers.IO) {
-                try {
-                    val db = getDatabase()
-                    val repo = OfflineNotificationRepository(db.notificationInstanceDao())
-                    val scheduler = AndroidAlarmScheduler(applicationContext)
-                    val timeProvider = SystemTimeProvider()
-                    val snoozeUseCase = SnoozeNotificationUseCase(repo, scheduler, timeProvider)
-                    snoozeUseCase(targetId, Duration.ofMillis(durationMillis))
-                } catch (_: Exception) {
+            try {
+                val db = getDatabase()
+                val repo = OfflineNotificationRepository(db.notificationInstanceDao())
+                val scheduler = AndroidAlarmScheduler(applicationContext)
+                val timeProvider = SystemTimeProvider()
+                val snoozeUseCase = SnoozeNotificationUseCase(repo, scheduler, timeProvider)
+                kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                    snoozeUseCase(targetId, Duration.ofMillis(durationMillis), com.example.offlinereminder.domain.model.ReminderDeliveryType.ALARM)
                 }
+            } catch (e: Exception) {
+                Log.w("PlanerizeAlarm", "Database snooze update failed for instance '$targetId'", e)
             }
         }
 
@@ -257,12 +292,13 @@ class AlarmPlaybackService : Service() {
         stateManager.transitionTo(instanceId, eventId, AlarmState.TIMED_OUT)
 
         // Room status updated to TIMED_OUT (the alarm was ringing and timed out after 10 minutes)
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                val db = getDatabase()
+        try {
+            val db = getDatabase()
+            kotlinx.coroutines.runBlocking(Dispatchers.IO) {
                 db.notificationInstanceDao().updateStatus(instanceId, NotificationInstanceStatus.TIMED_OUT.name)
-            } catch (_: Exception) {
             }
+        } catch (e: Exception) {
+            Log.w("PlanerizeAlarm", "Database timeout update failed for instance '$instanceId'", e)
         }
 
         // Show missed alarm tray notification
@@ -334,7 +370,10 @@ class AlarmPlaybackService : Service() {
             eventDesc: String,
             sound: SoundReference,
             vibrationEnabled: Boolean,
-            snoozeDurationMinutes: Int
+            snoozeDurationMinutes: Int,
+            occurrenceStart: String? = null,
+            occurrenceZone: String? = null,
+            location: String? = null
         ) {
             val intent = Intent(context, AlarmPlaybackService::class.java).apply {
                 action = NotificationConstants.ACTION_START_ALARM
@@ -348,6 +387,15 @@ class AlarmPlaybackService : Service() {
                 putExtra(NotificationConstants.EXTRA_BUILT_IN_SOUND_KEY, sound.builtInSoundKey)
                 putExtra(NotificationConstants.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
                 putExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MINUTES, snoozeDurationMinutes)
+                if (!occurrenceStart.isNullOrBlank()) {
+                    putExtra(NotificationConstants.EXTRA_OCCURRENCE_START, occurrenceStart)
+                }
+                if (!occurrenceZone.isNullOrBlank()) {
+                    putExtra(NotificationConstants.EXTRA_OCCURRENCE_ZONE, occurrenceZone)
+                }
+                if (!location.isNullOrBlank()) {
+                    putExtra(NotificationConstants.EXTRA_LOCATION, location)
+                }
             }
             val override = startForegroundServiceOverride
             if (override != null) {

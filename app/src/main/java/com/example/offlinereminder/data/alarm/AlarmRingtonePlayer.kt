@@ -139,19 +139,13 @@ class AlarmRingtonePlayer(
             )
         }
 
-        var sourceConfigured = false
         try {
-            val afd = context.contentResolver.openAssetFileDescriptor(uri, "r")
-            if (afd != null) {
-                player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                afd.close()
-                sourceConfigured = true
-            }
-        } catch (_: Exception) {
-        }
-
-        if (!sourceConfigured) {
             player.setDataSource(context, uri)
+        } catch (e: Exception) {
+            android.util.Log.w("AlarmRingtonePlayer", "Failed to setDataSource for uri: " + uri + ", attempting fallback", e)
+            val fallbackUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+                ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+            player.setDataSource(context, fallbackUri)
         }
 
         player.isLooping = isLooping

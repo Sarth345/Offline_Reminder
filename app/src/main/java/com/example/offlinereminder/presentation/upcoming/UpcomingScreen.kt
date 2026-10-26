@@ -56,6 +56,7 @@ fun UpcomingScreen(
     viewModel: UpcomingViewModel,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToAddEvent: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -65,6 +66,7 @@ fun UpcomingScreen(
         onAction = viewModel::onAction,
         onNavigateToDetails = onNavigateToDetails,
         onNavigateToAddEvent = onNavigateToAddEvent,
+        onNavigateToSettings = onNavigateToSettings,
         modifier = modifier
     )
 }
@@ -76,6 +78,7 @@ fun UpcomingContent(
     onAction: (UpcomingAction) -> Unit,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToAddEvent: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var occurrenceToReschedule by remember { mutableStateOf<EventOccurrence?>(null) }
@@ -99,7 +102,7 @@ fun UpcomingContent(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
+            com.example.offlinereminder.presentation.components.PrimaryScreenTopBar(
                 title = {
                     Column {
                         Text(
@@ -116,9 +119,7 @@ fun UpcomingContent(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                onNavigateToSettings = onNavigateToSettings
             )
         }
     ) { innerPadding ->
