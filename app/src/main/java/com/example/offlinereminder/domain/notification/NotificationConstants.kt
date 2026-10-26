@@ -21,9 +21,11 @@ object NotificationConstants {
     const val EXTRA_SNOOZE_DURATION_MILLIS = "extra_snooze_duration_millis"
     const val EXTRA_NOTIFICATION_ID = "extra_notification_id"
     const val EXTRA_IS_SILENT = "extra_is_silent"
+    const val EXTRA_DELIVERY_TYPE = "extra_delivery_type"
 
     const val EXTRA_EVENT_TITLE = "extra_event_title"
     const val EXTRA_EVENT_DESC = "extra_event_desc"
+    const val EXTRA_LOCATION = "extra_location"
     const val EXTRA_SOUND_TYPE = "extra_sound_type"
     const val EXTRA_CUSTOM_SOUND_ID = "extra_custom_sound_id"
     const val EXTRA_SYSTEM_SOUND_URI = "extra_system_sound_uri"

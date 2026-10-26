@@ -6,6 +6,7 @@ import com.example.offlinereminder.domain.model.NotificationInstance
 import com.example.offlinereminder.domain.model.NotificationInstanceStatus
 import com.example.offlinereminder.domain.notification.AlarmScheduler
 import com.example.offlinereminder.domain.notification.NotificationConstants
+import com.example.offlinereminder.domain.repository.EventRepository
 import com.example.offlinereminder.domain.repository.NotificationRepository
 
 /**
@@ -16,7 +17,8 @@ class RebootRecoveryUseCase(
     private val notificationRepository: NotificationRepository,
     private val alarmScheduler: AlarmScheduler,
     private val timeProvider: TimeProvider,
-    private val onMissedAlarm: ((NotificationInstance) -> Unit)? = null
+    private val onMissedAlarm: ((NotificationInstance) -> Unit)? = null,
+    private val eventRepository: EventRepository? = null
 ) {
     suspend operator fun invoke(): Result<Int> = Result.runCatching {
         val activeInstances = notificationRepository.getAllActiveScheduled()
@@ -24,22 +26,28 @@ class RebootRecoveryUseCase(
         var rescheduledCount = 0
 
         for (instance in activeInstances) {
+            val event = eventRepository?.getEvent(instance.eventId)
+            val schedule = event?.notificationSchedules?.firstOrNull { it.id == instance.scheduleId }
+            val deliveryType = schedule?.deliveryType
+
             when (instance.status) {
                 NotificationInstanceStatus.RINGING -> {
                     val elapsed = nowMillis - instance.triggerEpochMillis
                     if (elapsed in 0..NotificationConstants.ALARM_TIMEOUT_MILLIS || elapsed < 0) {
                         // Interrupted while ringing and still within the 10-minute alarm timeout window:
                         // Recover active alarm immediately with AlarmScheduler
+                        val extras = mutableMapOf(
+                            NotificationConstants.EXTRA_INSTANCE_ID to instance.id,
+                            NotificationConstants.EXTRA_EVENT_ID to instance.eventId,
+                            NotificationConstants.EXTRA_OCCURRENCE_START to instance.occurrenceOriginalStartDateTime.toString(),
+                            NotificationConstants.EXTRA_OCCURRENCE_ZONE to instance.occurrenceOriginalZoneId.id,
+                            NotificationConstants.EXTRA_DELIVERY_TYPE to com.example.offlinereminder.domain.model.ReminderDeliveryType.ALARM.name
+                        )
                         val success = alarmScheduler.scheduleAlarm(
                             requestCode = instance.requestCode,
                             triggerEpochMillis = nowMillis,
                             intentAction = NotificationConstants.ACTION_ALARM,
-                            extras = mapOf(
-                                NotificationConstants.EXTRA_INSTANCE_ID to instance.id,
-                                NotificationConstants.EXTRA_EVENT_ID to instance.eventId,
-                                NotificationConstants.EXTRA_OCCURRENCE_START to instance.occurrenceOriginalStartDateTime.toString(),
-                                NotificationConstants.EXTRA_OCCURRENCE_ZONE to instance.occurrenceOriginalZoneId.id
-                            )
+                            extras = extras
                         )
                         if (success) {
                             rescheduledCount++
@@ -57,16 +65,20 @@ class RebootRecoveryUseCase(
                         notificationRepository.updateStatus(instance.id, NotificationInstanceStatus.CANCELLED)
                     } else {
                         // Future valid instance -> re-register with AlarmScheduler
+                        val extras = mutableMapOf(
+                            NotificationConstants.EXTRA_INSTANCE_ID to instance.id,
+                            NotificationConstants.EXTRA_EVENT_ID to instance.eventId,
+                            NotificationConstants.EXTRA_OCCURRENCE_START to instance.occurrenceOriginalStartDateTime.toString(),
+                            NotificationConstants.EXTRA_OCCURRENCE_ZONE to instance.occurrenceOriginalZoneId.id
+                        )
+                        if (deliveryType != null) {
+                            extras[NotificationConstants.EXTRA_DELIVERY_TYPE] = deliveryType.name
+                        }
                         val success = alarmScheduler.scheduleAlarm(
                             requestCode = instance.requestCode,
                             triggerEpochMillis = instance.triggerEpochMillis,
                             intentAction = NotificationConstants.ACTION_ALARM,
-                            extras = mapOf(
-                                NotificationConstants.EXTRA_INSTANCE_ID to instance.id,
-                                NotificationConstants.EXTRA_EVENT_ID to instance.eventId,
-                                NotificationConstants.EXTRA_OCCURRENCE_START to instance.occurrenceOriginalStartDateTime.toString(),
-                                NotificationConstants.EXTRA_OCCURRENCE_ZONE to instance.occurrenceOriginalZoneId.id
-                            )
+                            extras = extras
                         )
                         if (success) {
                             rescheduledCount++

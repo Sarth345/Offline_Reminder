@@ -49,12 +49,31 @@ class AndroidAlarmScheduler(
         val pendingIntent = PendingIntent.getBroadcast(context, requestCode, intent, flags)
 
         return try {
+            val isAlarm = extras[com.example.offlinereminder.domain.notification.NotificationConstants.EXTRA_DELIVERY_TYPE] == "ALARM" ||
+                extras[com.example.offlinereminder.domain.notification.NotificationConstants.EXTRA_DELIVERY_TYPE] == com.example.offlinereminder.domain.model.ReminderDeliveryType.ALARM.name
             if (canScheduleExactAlarms()) {
-                manager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerEpochMillis,
-                    pendingIntent
-                )
+                if (isAlarm) {
+                    val showIntent = Intent(context, com.example.offlinereminder.MainActivity::class.java).apply {
+                        this.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        putExtra(com.example.offlinereminder.domain.notification.NotificationConstants.EXTRA_EVENT_ID, extras[com.example.offlinereminder.domain.notification.NotificationConstants.EXTRA_EVENT_ID])
+                    }
+                    val showPendingIntent = PendingIntent.getActivity(
+                        context,
+                        requestCode,
+                        showIntent,
+                        flags
+                    )
+                    manager.setAlarmClock(
+                        AlarmManager.AlarmClockInfo(triggerEpochMillis, showPendingIntent),
+                        pendingIntent
+                    )
+                } else {
+                    manager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerEpochMillis,
+                        pendingIntent
+                    )
+                }
             } else {
                 manager.setAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,

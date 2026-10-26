@@ -9,6 +9,7 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.provider.OpenableColumns
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -173,18 +174,19 @@ fun NotificationAlarmSettingsScreen(
                             .build()
                     )
                 }
-                var configured = false
-                try {
-                    val afd = context.contentResolver.openAssetFileDescriptor(uri, "r")
-                    if (afd != null) {
+                if (sound.type == SoundSourceType.BUILT_IN) {
+                    val resId = BuiltInSoundResourceMapper.getRawResourceForKey(sound.builtInSoundKey)
+                    if (resId != null) {
+                        val afd = context.resources.openRawResourceFd(resId)
                         player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
                         afd.close()
-                        configured = true
+                    } else {
+                        player.setDataSource(context, uri)
                     }
-                } catch (_: Exception) {}
-                if (!configured) {
+                } else {
                     player.setDataSource(context, uri)
                 }
+                player.setVolume(1.0f, 1.0f)
                 player.isLooping = isAlarm
                 player.setOnCompletionListener {
                     stopAudioPreview()
@@ -193,8 +195,10 @@ fun NotificationAlarmSettingsScreen(
                 player.start()
                 previewPlayer = player
                 currentlyPlayingKey = playKey
+                Log.d("PlanerizeSoundPreview", "Playing preview for key=$playKey isAlarm=$isAlarm uri=$uri")
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("PlanerizeSoundPreview", "Failed to play audio preview for key=$playKey", e)
             stopAudioPreview()
         }
     }

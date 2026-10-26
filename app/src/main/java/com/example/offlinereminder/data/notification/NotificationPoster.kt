@@ -49,6 +49,8 @@ class NotificationPoster(
             ).apply {
                 description = "Primary alerts for Planerize event reminders"
                 enableVibration(true)
+                enableLights(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
             val silentChannel = NotificationChannel(
@@ -58,6 +60,7 @@ class NotificationPoster(
             ).apply {
                 description = "Low-priority or quiet-hours alerts without sound or vibration"
                 enableVibration(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
             val alarmChannel = NotificationChannel(
@@ -68,6 +71,11 @@ class NotificationPoster(
                 description = "Active ringing alarm notifications"
                 setSound(null, null)
                 enableVibration(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+
+            com.example.offlinereminder.domain.model.BuiltInSoundCatalog.NOTIFICATION_TONES.forEach { tone ->
+                notificationManager?.deleteNotificationChannel("offline_reminders_tone_${tone.key}")
             }
 
             val builtInChannels = com.example.offlinereminder.domain.model.BuiltInSoundCatalog.NOTIFICATION_TONES.mapNotNull { tone ->
@@ -78,13 +86,15 @@ class NotificationPoster(
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
                 NotificationChannel(
-                    "offline_reminders_tone_${tone.key}",
+                    "offline_reminders_tone_v2_${tone.key}",
                     "Reminders - ${tone.displayName}",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "Alerts playing ${tone.displayName}"
                     setSound(soundUri, audioAttributes)
                     enableVibration(true)
+                enableLights(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 }
             }
 
@@ -106,7 +116,7 @@ class NotificationPoster(
                 SoundSourceType.BUILT_IN -> {
                     val key = sound.builtInSoundKey
                     if (!key.isNullOrBlank()) {
-                        val channelId = "offline_reminders_tone_${key}"
+                        val channelId = "offline_reminders_tone_v2_${key}"
                         if (notificationManager?.getNotificationChannel(channelId) == null) {
                             val soundUri = com.example.offlinereminder.data.sound.BuiltInSoundResourceMapper.getSoundUriForKey(context, key)
                             val builtInSound = com.example.offlinereminder.domain.model.BuiltInSoundCatalog.findNotificationTone(key)
@@ -125,6 +135,8 @@ class NotificationPoster(
                                     setSound(soundUri, audioAttributes)
                                 }
                                 enableVibration(vibrationEnabled)
+                                enableLights(true)
+                                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                             }
                             notificationManager?.createNotificationChannel(toneChannel)
                         }
@@ -148,6 +160,8 @@ class NotificationPoster(
                             ).apply {
                                 setSound(soundUri, audioAttributes)
                                 enableVibration(vibrationEnabled)
+                                enableLights(true)
+                                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                             }
                             notificationManager?.createNotificationChannel(customChannel)
                         }
@@ -171,6 +185,8 @@ class NotificationPoster(
                             ).apply {
                                 setSound(soundUri, audioAttributes)
                                 enableVibration(vibrationEnabled)
+                                enableLights(true)
+                                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                             }
                             notificationManager?.createNotificationChannel(sysChannel)
                         }
@@ -268,6 +284,8 @@ class NotificationPoster(
             .setDeleteIntent(dismissPendingIntent)
             .setAutoCancel(true)
             .setPriority(if (effectiveSilent) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(0, "Complete", completePendingIntent)
             .addAction(0, "Snooze", snoozePendingIntent)
 
@@ -300,7 +318,10 @@ class NotificationPoster(
         eventId: String,
         eventTitle: String,
         eventDesc: String,
-        snoozeDurationMinutes: Int = 10
+        snoozeDurationMinutes: Int = 10,
+        occurrenceStart: String? = null,
+        occurrenceZone: String? = null,
+        location: String? = null
     ): Notification {
         val notificationId = instanceId.hashCode()
 
@@ -309,6 +330,18 @@ class NotificationPoster(
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(NotificationConstants.EXTRA_INSTANCE_ID, instanceId)
             putExtra(NotificationConstants.EXTRA_EVENT_ID, eventId)
+            putExtra(NotificationConstants.EXTRA_EVENT_TITLE, eventTitle)
+            putExtra(NotificationConstants.EXTRA_EVENT_DESC, eventDesc)
+            putExtra(NotificationConstants.EXTRA_SNOOZE_DURATION_MINUTES, snoozeDurationMinutes)
+            if (!occurrenceStart.isNullOrBlank()) {
+                putExtra(NotificationConstants.EXTRA_OCCURRENCE_START, occurrenceStart)
+            }
+            if (!occurrenceZone.isNullOrBlank()) {
+                putExtra(NotificationConstants.EXTRA_OCCURRENCE_ZONE, occurrenceZone)
+            }
+            if (!location.isNullOrBlank()) {
+                putExtra(NotificationConstants.EXTRA_LOCATION, location)
+            }
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context,
@@ -351,6 +384,7 @@ class NotificationPoster(
             .setContentText(eventDesc.ifBlank { "Alarm ringing" })
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
             .setFullScreenIntent(fullScreenPendingIntent, true)

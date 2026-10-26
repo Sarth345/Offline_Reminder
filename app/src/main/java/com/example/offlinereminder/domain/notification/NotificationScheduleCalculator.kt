@@ -27,7 +27,8 @@ object NotificationScheduleCalculator {
         val deliveryDateTime: LocalDateTime,
         val triggerEpochMillis: Long,
         val isSilent: Boolean,
-        val requestCode: Int
+        val requestCode: Int,
+        val deliveryType: com.example.offlinereminder.domain.model.ReminderDeliveryType = com.example.offlinereminder.domain.model.ReminderDeliveryType.NOTIFICATION
     ) {
         fun toInstance(): NotificationInstance = NotificationInstance(
             id = instanceId,
@@ -86,7 +87,8 @@ object NotificationScheduleCalculator {
             deliveryDateTime = deliveryDateTime,
             triggerEpochMillis = triggerEpochMillis,
             isSilent = isSilent,
-            requestCode = requestCode
+            requestCode = requestCode,
+            deliveryType = schedule.deliveryType
         )
     }
 
