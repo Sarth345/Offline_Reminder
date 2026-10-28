@@ -192,23 +192,6 @@ fun DashboardContent(
                                 }
                             }
                         }
-                        if (uiState.tomorrowOccurrences.isNotEmpty()) {
-                            item {
-                                SectionHeader(title = "Tomorrow (${uiState.tomorrowOccurrences.size})")
-                            }
-                            items(
-                                items = uiState.tomorrowOccurrences,
-                                key = { it.occurrence.occurrenceId }
-                            ) { item ->
-                                OccurrenceCard(
-                                    occurrenceWithEvent = item,
-                                    onClick = { onNavigateToDetails(item.event.id) },
-                                    onComplete = { onAction(DashboardAction.CompleteOccurrence(item.occurrence)) },
-                                    onSkip = { onAction(DashboardAction.SkipOccurrence(item.occurrence)) },
-                                    onReschedule = { occurrenceToReschedule = item.occurrence }
-                                )
-                            }
-                        }
                     }
                 }
                 else -> {
@@ -298,7 +281,7 @@ fun DashboardContent(
                         if (uiState.todayOccurrences.isNotEmpty()) {
                             item {
                                 SectionHeader(
-                                    title = "Today (${uiState.todayOccurrences.size})",
+                                    title = "Today / Remaining (${uiState.todayOccurrences.size})",
                                     icon = Icons.Default.DateRange
                                 )
                             }
@@ -338,49 +321,6 @@ fun DashboardContent(
                             }
                         }
 
-                        // 6. Tomorrow section
-                        if (uiState.tomorrowOccurrences.isNotEmpty()) {
-                            item {
-                                SectionHeader(
-                                    title = "Tomorrow (${uiState.tomorrowOccurrences.size})",
-                                    icon = Icons.Default.DateRange
-                                )
-                            }
-                            items(
-                                items = uiState.tomorrowOccurrences,
-                                key = { it.occurrence.occurrenceId }
-                            ) { item ->
-                                OccurrenceCard(
-                                    occurrenceWithEvent = item,
-                                    onClick = { onNavigateToDetails(item.event.id) },
-                                    onComplete = { onAction(DashboardAction.CompleteOccurrence(item.occurrence)) },
-                                    onSkip = { onAction(DashboardAction.SkipOccurrence(item.occurrence)) },
-                                    onReschedule = { occurrenceToReschedule = item.occurrence }
-                                )
-                            }
-                        }
-
-                        // 7. Later / Upcoming section
-                        if (uiState.upcomingOccurrences.isNotEmpty()) {
-                            item {
-                                SectionHeader(
-                                    title = "Later This Week (${uiState.upcomingOccurrences.size})",
-                                    icon = Icons.Default.DateRange
-                                )
-                            }
-                            items(
-                                items = uiState.upcomingOccurrences,
-                                key = { it.occurrence.occurrenceId }
-                            ) { item ->
-                                OccurrenceCard(
-                                    occurrenceWithEvent = item,
-                                    onClick = { onNavigateToDetails(item.event.id) },
-                                    onComplete = { onAction(DashboardAction.CompleteOccurrence(item.occurrence)) },
-                                    onSkip = { onAction(DashboardAction.SkipOccurrence(item.occurrence)) },
-                                    onReschedule = { occurrenceToReschedule = item.occurrence }
-                                )
-                            }
-                        }
                     }
                 }
             }

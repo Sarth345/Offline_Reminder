@@ -35,7 +35,13 @@ class UpcomingViewModel(
 ) : ViewModel() {
 
     private val initialDate: LocalDate = timeProvider?.nowLocalDate() ?: LocalDate.now()
-    private val _uiState = MutableStateFlow(UpcomingUiState(isLoading = true, selectedDate = initialDate))
+    private val _uiState = MutableStateFlow(
+        UpcomingUiState(
+            isLoading = true,
+            mode = UpcomingMode.NEXT,
+            selectedDate = initialDate
+        )
+    )
     val uiState: StateFlow<UpcomingUiState> = _uiState.asStateFlow()
 
     private var loadJob: Job? = null
@@ -47,17 +53,21 @@ class UpcomingViewModel(
     fun onAction(action: UpcomingAction) {
         when (action) {
             is UpcomingAction.Refresh -> loadUpcoming()
+            is UpcomingAction.SelectMode -> {
+                _uiState.update { it.copy(mode = action.mode) }
+                loadUpcoming()
+            }
             is UpcomingAction.SelectDate -> {
-                _uiState.update { it.copy(selectedDate = action.date) }
+                _uiState.update { it.copy(mode = UpcomingMode.DATE, selectedDate = action.date) }
                 loadUpcoming()
             }
             is UpcomingAction.NavigateDays -> {
-                _uiState.update { it.copy(selectedDate = it.selectedDate.plusDays(action.days)) }
+                _uiState.update { it.copy(mode = UpcomingMode.DATE, selectedDate = it.selectedDate.plusDays(action.days)) }
                 loadUpcoming()
             }
             is UpcomingAction.JumpToToday -> {
                 val today = timeProvider?.nowLocalDate() ?: LocalDate.now()
-                _uiState.update { it.copy(selectedDate = today) }
+                _uiState.update { it.copy(mode = UpcomingMode.DATE, selectedDate = today) }
                 loadUpcoming()
             }
             is UpcomingAction.ChangeHorizon -> {
@@ -84,15 +94,22 @@ class UpcomingViewModel(
         loadJob = viewModelScope.launch(dispatcherProvider.main) {
             val currentState = _uiState.value
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val fromDateTime = currentState.selectedDate.atStartOfDay()
 
-            getUpcomingOccurrencesUseCase(
-                horizonDays = currentState.horizonDays,
-                fromDateTime = fromDateTime,
-                includeCompleted = currentState.includeCompleted,
-                includeSkipped = false,
-                includeOverdue = currentState.includeOverdue
-            )
+            val flow = when (currentState.mode) {
+                UpcomingMode.NEXT -> {
+                    val today = timeProvider?.nowLocalDate() ?: LocalDate.now()
+                    getUpcomingOccurrencesUseCase.nextOccurrencePerEvent(afterDate = today)
+                }
+                UpcomingMode.OVERDUE -> {
+                    val nowLdt = timeProvider?.nowLocalDateTime() ?: LocalDateTime.now()
+                    getUpcomingOccurrencesUseCase.overdueOccurrences(asOf = nowLdt, maxPerEvent = 4)
+                }
+                UpcomingMode.DATE -> {
+                    getUpcomingOccurrencesUseCase.occurrencesForDate(selectedDate = currentState.selectedDate)
+                }
+            }
+
+            flow
                 .catch { error ->
                     _uiState.update {
                         it.copy(
@@ -102,8 +119,6 @@ class UpcomingViewModel(
                     }
                 }
                 .collect { list ->
-                    val fromLocalDate = currentState.selectedDate
-                    val toLocalDate = fromLocalDate.plusDays(currentState.horizonDays)
                     val grouped = mutableMapOf<LocalDate, MutableList<EventOccurrenceWithEvent>>()
 
                     for (item in list) {
@@ -112,11 +127,8 @@ class UpcomingViewModel(
                         val endDay = occ.effectiveEndDateTime?.toLocalDate() ?: startDay
                         val effectiveEndDay = if (endDay.isBefore(startDay)) startDay else endDay
 
-                        val firstDay = if (startDay.isBefore(fromLocalDate)) fromLocalDate else startDay
-                        val lastDay = if (effectiveEndDay.isAfter(toLocalDate)) toLocalDate else effectiveEndDay
-
-                        var curr = firstDay
-                        while (!curr.isAfter(lastDay)) {
+                        var curr = startDay
+                        while (!curr.isAfter(effectiveEndDay)) {
                             grouped.getOrPut(curr) { mutableListOf() }.add(item)
                             curr = curr.plusDays(1)
                         }

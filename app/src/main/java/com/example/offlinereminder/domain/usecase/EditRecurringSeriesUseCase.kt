@@ -21,9 +21,12 @@ enum class RecurringSeriesEditMode {
 
 /**
  * Domain use case handling editing of recurring events across three RFC-compliant modes:
- * 1. THIS_OCCURRENCE: Creates an occurrence exception for the specific occurrence without mutating the series master.
- * 2. THIS_AND_FOLLOWING: Splits the series; truncates original series before this date and starts a new series from this date.
- * 3. ENTIRE_SERIES: Updates the canonical master event and reschedules notification instances.
+ * 1. THIS_OCCURRENCE: Creates an occurrence exception for the specific occurrence without mutating the series master
+ *    and recalculates notification schedules for the occurrence.
+ * 2. THIS_AND_FOLLOWING: Splits the series; truncates original series before this date, preserves historical occurrence
+ *    exceptions, migrates future occurrence exceptions, and starts a new series from this date.
+ * 3. ENTIRE_SERIES: Updates the canonical master event, preserves existing occurrence exceptions (precedence rule),
+ *    and reschedules notification instances respecting the exceptions.
  */
 class EditRecurringSeriesUseCase(
     private val eventRepository: EventRepository,
@@ -67,14 +70,35 @@ class EditRecurringSeriesUseCase(
                 )
 
                 occurrenceExceptionRepository.saveException(exception)
+                val allExceptions = occurrenceExceptionRepository.getExceptionsForEvent(originalEvent.id).first()
+                scheduleNotificationsUseCase(originalEvent, allExceptions)
                 originalEvent
             }
 
             RecurringSeriesEditMode.THIS_AND_FOLLOWING -> {
                 // Mode 2: Split the series
                 val cutoffDate = occurrenceOriginalStart.toLocalDate().minusDays(1)
+                val newEventId = UUID.randomUUID().toString()
 
-                // 2a. Truncate the original event recurrence rule to end before this occurrence
+                // 2a. Migrate any existing exceptions on or after occurrenceOriginalStart to the new event
+                val existingExceptions = occurrenceExceptionRepository.getExceptionsForEvent(originalEvent.id).first()
+                val migratedExceptions = mutableListOf<OccurrenceException>()
+                val remainingExceptions = mutableListOf<OccurrenceException>()
+                for (exc in existingExceptions) {
+                    if (!exc.originalStartDateTime.isBefore(occurrenceOriginalStart)) {
+                        occurrenceExceptionRepository.deleteException(exc.id)
+                        val migratedExc = exc.copy(
+                            id = OccurrenceException.createId(newEventId, exc.originalStartDateTime, exc.originalZoneId),
+                            eventId = newEventId
+                        )
+                        occurrenceExceptionRepository.saveException(migratedExc)
+                        migratedExceptions.add(migratedExc)
+                    } else {
+                        remainingExceptions.add(exc)
+                    }
+                }
+
+                // 2b. Truncate the original event recurrence rule to end before this occurrence
                 val originalRule = originalEvent.recurrenceRule
                 val truncatedOriginal = if (originalRule != null) {
                     val updatedRule = originalRule.copy(
@@ -90,10 +114,9 @@ class EditRecurringSeriesUseCase(
 
                 eventRepository.saveEvent(truncatedOriginal)
                 cancelNotificationsUseCase(originalEvent.id)
-                scheduleNotificationsUseCase(truncatedOriginal)
+                scheduleNotificationsUseCase(truncatedOriginal, remainingExceptions)
 
-                // 2b. Create new master event starting at this occurrence with the edited fields
-                val newEventId = UUID.randomUUID().toString()
+                // 2c. Create new master event starting at this occurrence with the edited fields
                 val newEvent = editedDraft.copy(
                     id = newEventId,
                     parentEventId = originalEvent.id,
@@ -102,35 +125,24 @@ class EditRecurringSeriesUseCase(
                 )
 
                 eventRepository.saveEvent(newEvent)
-                scheduleNotificationsUseCase(newEvent)
-
-                // 2c. Migrate any existing exceptions on or after occurrenceOriginalStart to the new event
-                val existingExceptions = occurrenceExceptionRepository.getExceptionsForEvent(originalEvent.id).first()
-                for (exc in existingExceptions) {
-                    if (!exc.originalStartDateTime.isBefore(occurrenceOriginalStart)) {
-                        occurrenceExceptionRepository.deleteException(exc.id)
-                        val migratedExc = exc.copy(
-                            id = OccurrenceException.createId(newEventId, exc.originalStartDateTime, exc.originalZoneId),
-                            eventId = newEventId
-                        )
-                        occurrenceExceptionRepository.saveException(migratedExc)
-                    }
-                }
+                scheduleNotificationsUseCase(newEvent, migratedExceptions)
 
                 newEvent
             }
 
             RecurringSeriesEditMode.ENTIRE_SERIES -> {
-                // Mode 3: Modify entire series master
+                // Mode 3: Modify entire series master while preserving existing occurrence exceptions (precedence rule)
                 val updatedMaster = editedDraft.copy(
                     id = originalEvent.id,
                     createdAt = originalEvent.createdAt,
                     updatedAt = now
                 )
 
+                val existingExceptions = occurrenceExceptionRepository.getExceptionsForEvent(originalEvent.id).first()
+
                 eventRepository.saveEvent(updatedMaster)
                 cancelNotificationsUseCase(originalEvent.id)
-                scheduleNotificationsUseCase(updatedMaster)
+                scheduleNotificationsUseCase(updatedMaster, existingExceptions)
                 updatedMaster
             }
         }

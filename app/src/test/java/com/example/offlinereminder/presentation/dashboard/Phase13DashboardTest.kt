@@ -75,7 +75,7 @@ class Phase13DashboardTest {
     @Test
     fun dashboard_classifiesTodayOverdueAndUpcomingCorrectly() = runTest {
         // Today is 2026-10-21 at 12:00
-        val overdue = createEvent("e_overdue", "Overdue Task", LocalDateTime.of(2026, 10, 20, 15, 0))
+        val overdue = createEvent("e_overdue", "Overdue Task", LocalDateTime.of(2026, 10, 21, 10, 0))
         val today = createEvent("e_today", "Today Task", LocalDateTime.of(2026, 10, 21, 16, 0))
         val tomorrow = createEvent("e_tomorrow", "Tomorrow Task", LocalDateTime.of(2026, 10, 22, 10, 0))
         val upcoming = createEvent("e_upcoming", "Upcoming Task", LocalDateTime.of(2026, 10, 25, 9, 0))
@@ -93,11 +93,8 @@ class Phase13DashboardTest {
         assertEquals(1, dashboard.today.size)
         assertEquals("e_today", dashboard.today.first().event.id)
 
-        assertEquals(1, dashboard.tomorrow.size)
-        assertEquals("e_tomorrow", dashboard.tomorrow.first().event.id)
-
-        assertEquals(1, dashboard.upcoming.size)
-        assertEquals("e_upcoming", dashboard.upcoming.first().event.id)
+        assertTrue(dashboard.tomorrow.isEmpty())
+        assertTrue(dashboard.upcoming.isEmpty())
     }
 
     @Test
@@ -175,12 +172,13 @@ class Phase13DashboardTest {
 
     @Test
     fun dashboard_respectsDateBoundaries() = runTest {
-        // Lookahead 7 days: event on day 20 should be out of window
+        // Far future event should not appear on Today Dashboard
         val farEvent = createEvent("e_far", "Far Future", LocalDateTime.of(2026, 11, 20, 10, 0))
         eventRepository.saveEvent(farEvent)
 
-        val dashboard = getDashboardOccurrencesUseCase(lookaheadDays = 7).first()
-        assertTrue(dashboard.upcoming.none { it.event.id == "e_far" })
+        val dashboard = getDashboardOccurrencesUseCase().first()
+        assertTrue(dashboard.today.none { it.event.id == "e_far" })
+        assertTrue(dashboard.upcoming.isEmpty())
     }
 
     @Test
@@ -222,10 +220,8 @@ class Phase13DashboardTest {
         assertEquals("e_recurring", dashboard.completedToday.first().event.id)
         assertTrue(dashboard.today.none { it.event.id == "e_recurring" })
 
-        // 3. Tomorrow's occurrence remains pending in tomorrow
-        assertEquals(1, dashboard.tomorrow.size)
-        assertEquals("e_recurring", dashboard.tomorrow.first().event.id)
-        assertEquals(OccurrenceStatus.PENDING, dashboard.tomorrow.first().occurrence.status)
+        // 3. Tomorrow's occurrence must NOT appear on Today Dashboard
+        assertTrue(dashboard.tomorrow.isEmpty())
     }
 
     @Test
