@@ -247,47 +247,32 @@ class UpcomingViewModelTest {
         val viewModel = createViewModel()
         testScheduler.advanceUntilIdle()
 
-        // Initially at today: all 3 events are in the horizon
-        assertEquals(3, viewModel.uiState.value.occurrences.size)
-        assertEquals(today, viewModel.uiState.value.selectedDate)
-
-        // 1. SelectDate: move to day 21 (anchor shifts forward)
-        viewModel.onAction(UpcomingAction.SelectDate(day21))
-        testScheduler.advanceUntilIdle()
-        assertEquals(day21, viewModel.uiState.value.selectedDate)
+        // Initially in Next mode: strictly after today (day21 and day22), eToday is excluded
         assertEquals(2, viewModel.uiState.value.occurrences.size)
         assertTrue(viewModel.uiState.value.occurrences.none { it.event.id == "e_today" })
 
-        // 2. NavigateDays: +1 day moves anchor to day 22
+        // 1. SelectDate: switches to DATE mode on day 21 (all occurrences on day 21)
+        viewModel.onAction(UpcomingAction.SelectDate(day21))
+        testScheduler.advanceUntilIdle()
+        assertEquals(day21, viewModel.uiState.value.selectedDate)
+        assertEquals(UpcomingMode.DATE, viewModel.uiState.value.mode)
+        assertEquals(1, viewModel.uiState.value.occurrences.size)
+        assertEquals("e_21", viewModel.uiState.value.occurrences.first().event.id)
+
+        // 2. NavigateDays: +1 day moves date to day 22
         viewModel.onAction(UpcomingAction.NavigateDays(1))
         testScheduler.advanceUntilIdle()
         assertEquals(day22, viewModel.uiState.value.selectedDate)
+        assertEquals(UpcomingMode.DATE, viewModel.uiState.value.mode)
         assertEquals(1, viewModel.uiState.value.occurrences.size)
         assertEquals("e_22", viewModel.uiState.value.occurrences.first().event.id)
 
-        // 3. JumpToToday: resets anchor back to today (2026-10-20)
+        // 3. JumpToToday: resets date back to today (2026-10-20) in DATE mode
         viewModel.onAction(UpcomingAction.JumpToToday)
         testScheduler.advanceUntilIdle()
         assertEquals(today, viewModel.uiState.value.selectedDate)
-        assertEquals(3, viewModel.uiState.value.occurrences.size)
-
-        // 4. Horizon Control: change to 1 day
-        viewModel.onAction(UpcomingAction.ChangeHorizon(1))
-        testScheduler.advanceUntilIdle()
-        assertEquals(1L, viewModel.uiState.value.horizonDays)
-        // Only today and day 21 within 1 day
-        assertTrue(viewModel.uiState.value.occurrences.none { it.event.id == "e_22" })
-
-        // 5. Toggles: includeCompleted & includeOverdue
-        assertTrue(viewModel.uiState.value.includeCompleted)
-        assertTrue(viewModel.uiState.value.includeOverdue)
-
-        viewModel.onAction(UpcomingAction.ToggleIncludeCompleted)
-        testScheduler.advanceUntilIdle()
-        assertFalse(viewModel.uiState.value.includeCompleted)
-
-        viewModel.onAction(UpcomingAction.ToggleIncludeOverdue)
-        testScheduler.advanceUntilIdle()
-        assertFalse(viewModel.uiState.value.includeOverdue)
+        assertEquals(UpcomingMode.DATE, viewModel.uiState.value.mode)
+        assertEquals(1, viewModel.uiState.value.occurrences.size)
+        assertEquals("e_today", viewModel.uiState.value.occurrences.first().event.id)
     }
 }

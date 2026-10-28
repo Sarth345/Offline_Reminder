@@ -28,8 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -99,6 +97,12 @@ fun UpcomingContent(
         )
     }
 
+    val subtitleText = when (uiState.mode) {
+        UpcomingMode.NEXT -> if (uiState.occurrences.isNotEmpty()) "${uiState.occurrences.size} next future reminder${if (uiState.occurrences.size > 1) "s" else ""}" else null
+        UpcomingMode.OVERDUE -> if (uiState.occurrences.isNotEmpty()) "${uiState.occurrences.size} overdue reminder${if (uiState.occurrences.size > 1) "s" else ""}" else null
+        UpcomingMode.DATE -> "${DateTimeFormatters.formatDate(uiState.selectedDate)} (${uiState.occurrences.size})"
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -110,9 +114,9 @@ fun UpcomingContent(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
-                        if (uiState.occurrences.isNotEmpty()) {
+                        if (subtitleText != null) {
                             Text(
-                                text = "${uiState.occurrences.size} occurrences in next ${uiState.horizonDays} days",
+                                text = subtitleText,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -130,15 +134,11 @@ fun UpcomingContent(
         ) {
             // Navigation & Filter Bar
             AgendaNavigationToolbar(
+                mode = uiState.mode,
                 selectedDate = uiState.selectedDate,
-                horizonDays = uiState.horizonDays,
-                includeCompleted = uiState.includeCompleted,
-                includeOverdue = uiState.includeOverdue,
+                onSelectMode = { onAction(UpcomingAction.SelectMode(it)) },
                 onNavigateDays = { onAction(UpcomingAction.NavigateDays(it)) },
-                onJumpToToday = { onAction(UpcomingAction.JumpToToday) },
-                onChangeHorizon = { onAction(UpcomingAction.ChangeHorizon(it)) },
-                onToggleIncludeCompleted = { onAction(UpcomingAction.ToggleIncludeCompleted) },
-                onToggleIncludeOverdue = { onAction(UpcomingAction.ToggleIncludeOverdue) }
+                onJumpToToday = { onAction(UpcomingAction.JumpToToday) }
             )
 
             if (uiState.errorMessage != null) {
@@ -153,9 +153,19 @@ fun UpcomingContent(
                     LoadingView(message = "Loading timeline...")
                 }
                 uiState.isEmpty -> {
+                    val emptyTitle = when (uiState.mode) {
+                        UpcomingMode.NEXT -> "No upcoming reminders found"
+                        UpcomingMode.OVERDUE -> "No overdue reminders! 🎉"
+                        UpcomingMode.DATE -> "No reminders for ${DateTimeFormatters.formatDate(uiState.selectedDate)}"
+                    }
+                    val emptyMessage = when (uiState.mode) {
+                        UpcomingMode.NEXT -> "You have no upcoming future reminders scheduled. Tap '+' to create a reminder."
+                        UpcomingMode.OVERDUE -> "Great job! You have no overdue reminders pending."
+                        UpcomingMode.DATE -> "No reminders scheduled for this date. Use arrow buttons to navigate or tap '+' to add one."
+                    }
                     EmptyStateView(
-                        title = "No timeline events found",
-                        message = "No reminders scheduled for this period. Try navigating or tap '+' to create a reminder.",
+                        title = emptyTitle,
+                        message = emptyMessage,
                         actionLabel = "Add Reminder",
                         onAction = onNavigateToAddEvent
                     )
@@ -196,15 +206,11 @@ fun UpcomingContent(
 
 @Composable
 fun AgendaNavigationToolbar(
+    mode: UpcomingMode,
     selectedDate: LocalDate,
-    horizonDays: Long,
-    includeCompleted: Boolean,
-    includeOverdue: Boolean,
+    onSelectMode: (UpcomingMode) -> Unit,
     onNavigateDays: (Long) -> Unit,
     onJumpToToday: () -> Unit,
-    onChangeHorizon: (Long) -> Unit,
-    onToggleIncludeCompleted: () -> Unit,
-    onToggleIncludeOverdue: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -212,43 +218,7 @@ fun AgendaNavigationToolbar(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
     ) {
-        // Date stepping row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            IconButton(
-                onClick = { onNavigateDays(-7) },
-                modifier = Modifier.semantics { contentDescription = "Previous week" }
-            ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-            }
-
-            OutlinedButton(
-                onClick = onJumpToToday,
-                modifier = Modifier.semantics { contentDescription = "Jump to today" }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Today,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = "Today", style = MaterialTheme.typography.labelMedium)
-            }
-
-            IconButton(
-                onClick = { onNavigateDays(7) },
-                modifier = Modifier.semantics { contentDescription = "Next week" }
-            ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Filter chips row
+        // Mode selector tabs
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -257,30 +227,57 @@ fun AgendaNavigationToolbar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             FilterChip(
-                selected = horizonDays == 7L,
-                onClick = { onChangeHorizon(7L) },
-                label = { Text("7 Days") }
+                selected = mode == UpcomingMode.NEXT,
+                onClick = { onSelectMode(UpcomingMode.NEXT) },
+                label = { Text("Next") }
             )
             FilterChip(
-                selected = horizonDays == 14L,
-                onClick = { onChangeHorizon(14L) },
-                label = { Text("14 Days") }
+                selected = mode == UpcomingMode.OVERDUE,
+                onClick = { onSelectMode(UpcomingMode.OVERDUE) },
+                label = { Text("Overdue") }
             )
             FilterChip(
-                selected = horizonDays == 30L,
-                onClick = { onChangeHorizon(30L) },
-                label = { Text("30 Days") }
+                selected = mode == UpcomingMode.DATE,
+                onClick = { onSelectMode(UpcomingMode.DATE) },
+                label = { Text("By Date") }
             )
-            FilterChip(
-                selected = includeCompleted,
-                onClick = onToggleIncludeCompleted,
-                label = { Text("Show Completed") }
-            )
-            FilterChip(
-                selected = includeOverdue,
-                onClick = onToggleIncludeOverdue,
-                label = { Text("Show Overdue") }
-            )
+        }
+
+        // Date stepping row (displayed in Date mode)
+        if (mode == UpcomingMode.DATE) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(
+                    onClick = { onNavigateDays(-1) },
+                    modifier = Modifier.semantics { contentDescription = "Previous day" }
+                ) {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                }
+
+                OutlinedButton(
+                    onClick = onJumpToToday,
+                    modifier = Modifier.semantics { contentDescription = "Jump to today" }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Today,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "Today", style = MaterialTheme.typography.labelMedium)
+                }
+
+                IconButton(
+                    onClick = { onNavigateDays(1) },
+                    modifier = Modifier.semantics { contentDescription = "Next day" }
+                ) {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                }
+            }
         }
     }
 }

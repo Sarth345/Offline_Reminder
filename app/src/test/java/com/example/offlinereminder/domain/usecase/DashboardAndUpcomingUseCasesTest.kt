@@ -69,7 +69,7 @@ class DashboardAndUpcomingUseCasesTest {
     @Test
     fun getDashboardOccurrences_partitionsOverdueTodayTomorrowUpcomingCorrectly() = runTest {
         // Today is 2026-10-20 12:00
-        val overdueEvent = createEvent("e_overdue", "Overdue", LocalDateTime.of(2026, 10, 19, 10, 0))
+        val overdueEvent = createEvent("e_overdue", "Overdue", LocalDateTime.of(2026, 10, 20, 10, 0))
         val todayEvent = createEvent("e_today", "Today", LocalDateTime.of(2026, 10, 20, 16, 0))
         val tomorrowEvent = createEvent("e_tomorrow", "Tomorrow", LocalDateTime.of(2026, 10, 21, 9, 0))
         val upcomingEvent = createEvent("e_upcoming", "Upcoming", LocalDateTime.of(2026, 10, 24, 11, 0))
@@ -88,11 +88,9 @@ class DashboardAndUpcomingUseCasesTest {
         assertEquals(1, dashboard.today.size)
         assertEquals("e_today", dashboard.today.first().event.id)
 
-        assertEquals(1, dashboard.tomorrow.size)
-        assertEquals("e_tomorrow", dashboard.tomorrow.first().event.id)
-
-        assertEquals(1, dashboard.upcoming.size)
-        assertEquals("e_upcoming", dashboard.upcoming.first().event.id)
+        // Strict Today Dashboard rule: No tomorrow or future occurrences appear on Today
+        assertTrue(dashboard.tomorrow.isEmpty())
+        assertTrue(dashboard.upcoming.isEmpty())
     }
 
     @Test
@@ -110,20 +108,7 @@ class DashboardAndUpcomingUseCasesTest {
         occurrenceExceptionRepository.saveException(exception)
 
         val dashboard = getDashboardOccurrencesUseCase().first()
-        assertTrue(dashboard.today.isEmpty())
-    }
-
-    @Test
-    fun getUpcomingOccurrences_returnsFuturePendingOccurrencesSorted() = runTest {
-        val event1 = createEvent("e1", "Event Later", LocalDateTime.of(2026, 10, 25, 10, 0))
-        val event2 = createEvent("e2", "Event Sooner", LocalDateTime.of(2026, 10, 22, 10, 0))
-
-        eventRepository.saveEvent(event1)
-        eventRepository.saveEvent(event2)
-
-        val upcoming = getUpcomingOccurrencesUseCase(30).first()
-        assertEquals(2, upcoming.size)
-        assertEquals("e2", upcoming[0].event.id)
-        assertEquals("e1", upcoming[1].event.id)
+        assertTrue(dashboard.today.none { it.event.id == "e_excluded" })
+        assertTrue(dashboard.overdue.none { it.event.id == "e_excluded" })
     }
 }

@@ -161,7 +161,7 @@ class ComposeScreensTest {
         }
 
         composeTestRule.onNodeWithText("Overdue (1)").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Today (1)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Today / Remaining (1)").assertIsDisplayed()
         composeTestRule.onNodeWithText("2 actionable reminders").assertIsDisplayed()
 
         // Complete action
@@ -408,7 +408,7 @@ class ComposeScreensTest {
         }
 
         composeTestRule.onNodeWithText("Upcoming Agenda").assertIsDisplayed()
-        composeTestRule.onNodeWithText("1 occurrences in next 14 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1 next future reminder").assertIsDisplayed()
         composeTestRule.onNodeWithText("Dentist Checkup").assertIsDisplayed()
     }
 }

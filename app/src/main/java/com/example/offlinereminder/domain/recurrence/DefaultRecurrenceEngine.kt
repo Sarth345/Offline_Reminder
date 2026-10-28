@@ -597,7 +597,7 @@ class DefaultRecurrenceEngine(
         evaluateOverdue: Boolean,
         timeProvider: TimeProvider?
     ): EventOccurrence {
-        if (!evaluateOverdue || occurrence.status != OccurrenceStatus.PENDING) {
+        if (!evaluateOverdue || (occurrence.status != OccurrenceStatus.PENDING && occurrence.status != OccurrenceStatus.RESCHEDULED)) {
             return occurrence
         }
         val provider = timeProvider ?: defaultTimeProvider

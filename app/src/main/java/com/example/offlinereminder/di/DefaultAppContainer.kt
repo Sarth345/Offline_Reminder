@@ -314,7 +314,30 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             occurrenceExceptionRepository = occurrenceExceptionRepository,
             rescheduleOccurrenceUseCase = rescheduleOccurrenceUseCase,
             scheduleNotificationsForEventUseCase = scheduleNotificationsForEventUseCase,
-            timeProvider = timeProvider
+            timeProvider = timeProvider,
+            notificationRepository = notificationRepository,
+            alarmScheduler = alarmScheduler,
+            stopActiveAlarm = {
+                try {
+                    com.example.offlinereminder.data.alarm.AlarmStateManager.getInstance().reset()
+                    val stopIntent = android.content.Intent(context, com.example.offlinereminder.data.alarm.AlarmPlaybackService::class.java).apply {
+                        action = com.example.offlinereminder.domain.notification.NotificationConstants.ACTION_DISMISS
+                    }
+                    context.stopService(stopIntent)
+                } catch (e: Exception) {
+                    android.util.Log.w("DefaultAppContainer", "Failed to stop active alarm", e)
+                }
+            },
+            immediateNotificationDeliverer = { event, instance, missedCount ->
+                try {
+                    NotificationPoster(context).postNotification(
+                        event = event,
+                        instance = instance
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w("DefaultAppContainer", "Failed to post immediate notification", e)
+                }
+            }
         )
     }
 

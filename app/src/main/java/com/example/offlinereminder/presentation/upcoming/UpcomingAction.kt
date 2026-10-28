@@ -9,6 +9,7 @@ import java.time.LocalDateTime
  */
 sealed interface UpcomingAction {
     data object Refresh : UpcomingAction
+    data class SelectMode(val mode: UpcomingMode) : UpcomingAction
     data class CompleteOccurrence(
         val occurrence: EventOccurrence,
         val actualExecutionDateTime: LocalDateTime? = null
